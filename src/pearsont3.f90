@@ -131,17 +131,15 @@ module resample_data
   real(dp):: se_r_resample1=-999.0_dp  ! standard error for r_resample1
   real(dp),dimension(b1) :: se_r_resample2=-999.0_dp ! standard error for
   ! r_resample2 (b1 times)
-  real(dp),dimension(b1,n_lambda) :: &
-    r_low_resample1=-999.0_dp   ! b1 times lower bound (r) for the resamples1
-  ! over grid of lambda
-  real(dp),dimension(b1,n_lambda) :: &
-    r_upp_resample1=-999.0_dp   ! b1 times lower bound (r) for the resamples1
-  ! over grid of lambda
+  real(dp), dimension(:,:) ,allocatable :: &
+    r_low_resample1, r_upp_resample1
+  ! b1 times lower/upper bound (r) for the resamples1 over grid of lambda
+  ! Made allocateable to save compilation time and o-file size
+  ! (will be allocated size (b1, n_lambda).
   real(dp),dimension(n_lambda),parameter ::         &
     lambda=(/ (0.5_dp*i_lambda/n_lambda, &
     i_lambda=1,n_lambda) /)  ! lambda over grid of values from 0-0.5. how
-  ! tight the values are, is decided with n_lambda
-  !
+  !                          ! tight the values are, is decided with n_lambda
 end module resample_data
 !
 !=============================================================================
@@ -179,6 +177,22 @@ end module setting
 !
 module pearsont3_module
 contains
+  subroutine allocate_resample_data
+    use setting
+    use resample_data
+    implicit none
+    integer error
+    allocate(r_low_resample1(b1, n_lambda), r_upp_resample1(b1, n_lambda), &
+      stat=error)
+    if (error /= 0) stop 'Allocation failed'
+  end subroutine allocate_resample_data
+
+  subroutine deallocate_resample_data
+    use resample_data
+    implicit none
+    deallocate(r_low_resample1, r_upp_resample1)
+  end subroutine deallocate_resample_data
+  
   subroutine allocate0
     use precision
     use setting, only: n1
@@ -1678,18 +1692,17 @@ program pear
   ! 3.    Time interval extraction and calculation
   !       =====================================
   call init1a           ! n2=n1
-  call calc_t_inv_lambda  ! calculates percentage point tv(lambda) over a
-  ! lambda grid (Calibrated CI)
-  call allocate1        ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
-  ! x3_resample2, y3_resample2
-  call init1b           ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
-  ! x3_resample2, y3_resample2
+  call calc_t_inv_lambda      ! calculates percentage point tv(lambda) over a
+                              ! lambda grid (Calibrated CI)
+  call allocate1              ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
+                              ! x3_resample2, y3_resample2
+  call allocate_resample_data
+  call init1b                 ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
+                              ! x3_resample2, y3_resample2
   outer4: do i1=1,imax
-    !                call chsett3           ! changes setting: dtrtype
-    call r_est                 ! detrends (x2->x3, y2->y3)
-    ! estimates r(x3, y3)
+    call r_est       ! detrends (x2->x3, y2->y3), estimates r(x3, y3)
     call tauest      ! estimates persistence times taux3, tauy3 and rhox3 and
-    ! rhoy3)
+                     ! rhoy3)
     call chsett4     ! changes setting: l_mbb , block length
     call confidence  ! estimates [r_low; r_upp]
     call plot(1)     ! t2, x2, y2
@@ -1707,6 +1720,7 @@ program pear
       exit outer4
     end if
   end do outer4
+  call deallocate_resample_data
   !
   ! 4.    Output and exit
   !       ==============
