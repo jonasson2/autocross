@@ -1,0 +1,15 @@
+*.o
+*.mod
+*.exe
+a.out
+*.log
+.DS_Store
+*result.*
+*~
+nr/
+zips/
+modules/
+bin/
+
+# Additional directories or specific files you might want to exclude
+# Add them here, e.g., output files, logs, etc.
