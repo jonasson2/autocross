@@ -295,7 +295,6 @@ contains
     !   calculates for lambda grid; dof = 2n-5 (x, y; E_x, E_y, S_x,S_y, r_xy
     !   estimation).
     !
-    real(dp):: t_inv
     integer:: i
     !
     do i=1,n_lambda
@@ -315,7 +314,8 @@ contains
     do i=1,ntry
       print *
       print '(a)','data (t, x, y)              [path + filename]'
-      read (5,'(a)') datafile
+      !read (5,'(a)') datafile
+      datafile = "test_data.txt"
       open (unit=1, file=datafile, status='old',                   &
         form='formatted', action='read', iostat=open_error)
       if (open_error /= 0 ) then
@@ -475,7 +475,6 @@ contains
     real(dp):: alphatest=-999.0_dp        ! test alpha (1 - 2 * alpha)
     integer :: l_loc=0 ! gives the location of lambda value, within the lambda,
     !                  ! which gives the coverage closest to 1-2*alpha  array
-    real(dp) :: invtanh
     character(len=1),parameter::flag_fisher='y'    ! 'y' = Fisher's transform
     !                ! 'n' = without Fisher's transform
     !
@@ -1137,10 +1136,9 @@ contains
   !
   !=============================================================================
   !
-  function phi_inv(prob)
+  real(dp) function phi_inv(prob)
     use precision
     implicit none
-    real(dp) :: phi_inv
     !       Inverse cumulative normal density approximation after
     !       Odeh and Evans (1974, Appl. Stat. 23, 96-97).
     !       Error [phi_inv] < 1.5e-8.
@@ -1417,15 +1415,25 @@ contains
     !
     !       <=> following lines uncommented
     !
-    call execute_command_line("wgnuplot.exe 2.tmp")
-    !***************************************************************************
-    !       PC, Suse Linux 8.0                            Portland PGF90 3.2-4
-    !       <=> following lines uncommented
-    !       integer*4 plot, system
-    !       external system
-    !       plot=system( ' gnuplot 2.tmp ' )
-    !***************************************************************************
-    !
+    character(len=50) :: env
+    integer :: ierr, stat
+    logical :: windows
+    call get_environment_variable("OS", env, status=ierr)
+    windows = ierr == 0 .and. env == 'Windows_NT'
+    if (windows) then
+      call execute_command_line("where wgnuplot.exe > nul 2>&1", exitstat=stat)
+    else
+      call execute_command_line("which gnuplot > nul 2>&1", exitstat=stat)
+    endif    
+    if (stat /= 0) then
+      print *,'Gnuplot not found'
+      return
+    end if
+    if (windows) then
+      call execute_command_line("wgnuplot.exe 2.tmp")
+    else
+      call execute_command_line("gnuplot 2.tmp")
+    end if
   end subroutine plotgn
   !
   !=============================================================================
@@ -1645,7 +1653,6 @@ contains
     use precision
     implicit none
     real(dp) :: t_inv
-    real(dp) :: phi_inv
     !         Inverse Student's t distribution function, approximation
     !         after Abramowitz and Stegun (1964).
     !
@@ -1671,6 +1678,7 @@ end module pearsont3_module
 
 program pear
   use parameters, only: imax
+  use pearsont3_module
   use random
   implicit none
   character(len=1) :: c1
