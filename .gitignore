@@ -3,6 +3,8 @@
 *.exe
 a.out
 *.log
+*.tmp
+pearsont3.dat
 .DS_Store
 *result.*
 *~

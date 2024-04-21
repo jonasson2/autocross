@@ -1,13 +1,13 @@
+! PearsonT, version 2.0, April 2024
 !
-! PearsonT:
+! Estimating Pearson's correlation coefficient with calibrated bootstrap
+! confidence interval from serially dependent time series
 !
-! Estimating Pearson's correlation coefficient with
-! bootstrap confidence interval from
-! serially dependent time series
+! LICENCE (c) 2024 the authors; MIT license (https://opensource.org/license/mit)
+! [except FMIN which is BSD-3 licensed]
 !
-! Author
-! ======
-!
+! Authors
+! =======
 ! Manfred Mudelsee
 ! Climate Risk Analysis
 ! Schneiderberg 26
@@ -16,10 +16,16 @@
 ! Email: mudelsee@mudelsee.com
 ! URL: http://www.mudelsee.com
 !
-!=============================================================================
+! Kristin B. Olafsdottir (kbo)
+! Icelandic Meteorological Office
+! E-mail: kbo@vedur.is
 !
-! Change log
-! ==========
+! Kristján Jónasson
+! University of Iceland
+! jonasson@hi.is
+!=============================================================================
+! Change log for version 1
+! ========================
 !
 ! Version  Date           Comments
 !
@@ -28,32 +34,24 @@
 !                         o mean detrending method added
 ! 1.20     March 2010     o subroutine bootstrap: 'p = 1.0 commented out
 !                         o subroutine plot, point 3.1: simplified (but: has
-!                           to adapted in future)
+!                           to be adapted in future)
 ! 1.30     June 2011      o compiler switch to gfortran
 !
-!=============================================================================
-!
-! kbo-change log (May 2013)
-! =============
-!
-! PearsonT3:
-!
-! Estimating Pearson's correlation coefficient with
-! calibrated bootstrap confidence interval from
-! serially dependent time series!
-!
-! Author: 
-! ========
-! Kristin B. Olafsdottir (kbo)
-! Climate Risk Analysis
-! E-mail: olafsdottir@climate-risk-analysis.com
-!
-! Main changes:
+! KBO-change log (May 2013), main changes:
 !  o Bootstrap method changed from stationary bootstrap to pairwise MBB and
 !    block length selector changed
 !  o Confidence intervals changed from BCa to calibrated bootstrap Student's t
 !    CI
 !=============================================================================
+! Changes in April 2024 by Kristján Jónasson (version 2.0
+! 1) Reformatting (max line length 80, cleaned comments, reindented)
+! 2) Changed everything to double precision
+! 3) Replaced Numerical Recipes functions (erfcc, brent, avevar)
+! 4) Removed interface blocks, now everything is in modules
+! 5) Updated author list
+! 6) Now licensed with MIT license
+!=============================================================================
+
 module data1
   ! Data file (original data): n1 rows of (t1, x1, y1).
   use precision
