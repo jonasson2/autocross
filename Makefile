@@ -6,6 +6,7 @@ MOD = modules
 
 CFLAGS = -O3 -J$(MOD)
 LFLAGS = -I$(MOD)
+FLAGS =
 
 SOURCES = $(wildcard $(SRC)/*.f90)
 OBJECTS = $(patsubst $(SRC)/%.f90,$(OBJ)/%.o,$(SOURCES))
@@ -15,15 +16,15 @@ all: $(EXECUTABLES)
 
 $(BIN)/pearsont3: $(OBJ)/modules.o $(OBJ)/pearsont3.o
 	mkdir -p $(BIN)
-	$(FC) $(LFLAGS) $^ -o $@
+	$(FC) $(LFLAGS) $(FLAGS) $^ -o $@
 
 $(BIN)/redfit-x: $(OBJ)/modules.o $(OBJ)/redfit-x.o
 	mkdir -p $(BIN)
-	$(FC) $(LFLAGS) $^ -o $@
+	$(FC) $(LFLAGS) $(FLAGS) $^ -o $@
 
 $(OBJ)/%.o: $(SRC)/%.f90
 	mkdir -p $(OBJ) $(MOD)
-	$(FC) $(CFLAGS) -c $< -o $@
+	$(FC) $(CFLAGS) $(FLAGS) -c $< -o $@
 
 clean:
 	rm -rf $(OBJ)/* $(MOD)/* $(BIN)/*
