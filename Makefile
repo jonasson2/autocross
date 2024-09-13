@@ -29,4 +29,7 @@ $(OBJ)/%.o: $(SRC)/%.f90
 clean:
 	rm -rf $(OBJ)/* $(MOD)/* $(BIN)/*
 
+pears:
+	cd run && time pearsont3 && cd ..
+
 .PHONY: all clean

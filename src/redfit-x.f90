@@ -9,7 +9,7 @@
 ! tested against red noise (the AR(1) parameter is estimated directly from the
 ! unevenly spaced time series).
 !
-! Version 2, April 2024
+! Version 2.0, April 2024
 !
 ! Main changes:
 !       o Cross-spectral analysis has been implemented

@@ -735,7 +735,8 @@ subroutine chsett1
         do i=1,ntry
            print *
            print '(a)','data (t, x, y)              [path + filename]'
-           read (5,'(a)') datafile
+           !read (5,'(a)') datafile
+           datafile = 'test_data.txt'
            open (unit=1, file=datafile, status='old',                   &
                  form='formatted', action='read', iostat=open_error)
            if (open_error /= 0 ) then
@@ -913,6 +914,12 @@ subroutine confidence
 	   call bootstrap(n2,x3,y3,l_mbb,x3_resample1(j,1:n2),y3_resample1(j,1:n2))
 	   call pearsn(x3_resample1(j,1:n2),y3_resample1(j,1:n2),n2,r_resample1(j))
 	end do
+    print *, 'n2,b1=', n2, b1
+    print *, 'x3=', x3_resample1(1,1:5), x3_resample1(1,n2-4:n2)
+    print *, 'x3=', x3_resample1(b1,1:5), x3_resample1(b1,n2-4:n2)
+    print *, 'y3=', y3_resample1(1,1:5), y3_resample1(1,n2-4:n2)
+    print *, 'y3=', y3_resample1(b1,1:5), y3_resample1(b1,n2-4:n2)
+    print *, 'r_=', r_resample1(1:5), r_resample1(b1-4:b1)
 !
 !	1.2 Fisher's z-transformation
 !	=============================
@@ -1092,7 +1099,8 @@ subroutine decis1(c)
            print '(a)','New time interval                        [n]'
            print '(a)','Original time interval                   [o]'
            print '(a)','Output and exit                          [x]'
-           read (5,'(a1)') c
+           !read (5,'(a1)') c
+           c = 'x'
            if (c == 'n' .or. c == 'o' .or. c == 'x') exit
         end do
         if (i > ntry) then
@@ -1515,6 +1523,7 @@ end subroutine minls
 !
 subroutine output
 	use own_interfaces
+        use result1
         use parameters, only: outputfile
         implicit none
 !       Writes output to file.
@@ -1526,7 +1535,7 @@ subroutine output
         call info3('w',outputfile)
         call info4('w',outputfile)
         print '(a)','Press Enter to exit'
-        read (5,'(a)') dummy
+        !read (5,'(a)') dummy
 end subroutine output
 !
 !===================================================================================================
@@ -1849,7 +1858,7 @@ subroutine plotgn
 !
 !       <=> following lines uncommented
 !
-	call execute_command_line("wgnuplot.exe 2.tmp")
+	!call execute_command_line("wgnuplot.exe 2.tmp")
 !***************************************************************************************************
 !       PC, Suse Linux 8.0                            Portland PGF90 3.2-4
 !       <=> following lines uncommented
@@ -2038,6 +2047,7 @@ end subroutine tauest
 	!brent - Brent's search - minimum ls value
 !	
 	call minls(n,t,x,amin,mult)
+        print *,'amin=', amin
 !
 ! 5.    Result					! checked if amin (the value for a) is equal or less than zero,
 !       ======					! or if it is equal or bigger than 1.0. That can cause problems in the estimation

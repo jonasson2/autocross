@@ -10,6 +10,29 @@ module precision
   integer, parameter :: dp = kind(1d0)
 end module precision
 
+module time
+  real :: start_time
+contains
+  subroutine tic
+    call cpu_time(start_time)
+  end subroutine tic
+
+  subroutine tocprint(header)
+    character(len=*), intent(in), optional :: header
+    if (present(header)) then
+      print '(A,": ",F0.3," s")', header, toc()
+    else
+      print '(F0.3, " s")', toc()
+    end if
+  end subroutine tocprint
+  
+  function toc() result(elapsed)
+    real :: elapsed
+    call cpu_time(elapsed)
+    call tic()
+  end function toc
+end module time
+
 module const
   use precision
   implicit none
@@ -161,17 +184,16 @@ contains
     implicit none
     integer, intent(in), optional :: seed
     integer, allocatable :: seedvector(:)
-    integer :: n, i
+    integer :: n, i, clock
     call random_seed(size = n)
     allocate(seedvector(n))
     if (present(seed)) then
+      seedvector = 0
       seedvector(1) = seed
     else
-      seedvector(1) = -206761862
+      call system_clock(count=clock)
+      seedvector = clock + 37*[(i, i=1,n)]
     end if
-    do i=2,n
-      seedvector(i) = 0
-    end do
     call random_seed(put = seedvector)
   end subroutine ranseed
 
