@@ -1,3 +1,4 @@
+# Breytt af KBOx
 FC = gfortran
 SRC = src
 OBJ = obj
