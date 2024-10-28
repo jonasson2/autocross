@@ -7,3 +7,6 @@ bin/
 .DS_Store
 *~
 a.out
+*.dat
+pearsont3
+redfit-x
