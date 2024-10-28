@@ -1,12 +1,15 @@
 Package: autocross
-Title: What the Package Does (One Line, Title Case)
+Title: Autocross
 Version: 0.0.0.9000
-Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+Authors@R: c(
+    person("Kristín Björg", "Ólafsdóttir", , "kbo@vedur.is", role = c("aut", "cre")),
+    person("Kristján", "Jónasson", , "jonasson@hi.is", role = "aut"),
+    person("Manfred", "Mudelsee", , "mudelsee@climate-risk-analysis.com", role = "aut")
+  )
+Description: Compute calibrated confidence interval for two auto and cross
+    correlated time series with variable time step
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.0.0
+version: 1.0.0

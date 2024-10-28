@@ -1,1 +1,9 @@
 .Rproj.user
+*.mod
+obj/
+run/
+modules/
+bin/
+.DS_Store
+*~
+a.out

@@ -1,0 +1,9 @@
+ set key default
+ set grid
+ set title "Time series - original time interval  - detrended"
+ set xlabel "time series value  x"
+ set ylabel "time series value  y"
+ set autoscale x
+ set autoscale y
+ plot '1.tmp' u 6:7 axes x1y1 notitle w p 3
+ pause mouse key
