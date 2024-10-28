@@ -2,7 +2,7 @@
 FC = gfortran
 SRC = src
 OBJ = obj
-BIN = bin
+BIN = .
 MOD = modules
 MODOBJ = $(addprefix $(OBJ)/,pearsont3mod.o modules.o pearsont3sub_mod.o)
 

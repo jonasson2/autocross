@@ -83,7 +83,6 @@ contains
 		call init1a           ! n2=n1
 	  call calc_t_inv_lambda      ! calculates percentage point tv(lambda) over a
 								  ! lambda grid (Calibrated CI)
-							print *, " n2= ",n2
 	  call allocate1              ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
 								  ! x3_resample2, y3_resample2
 	  call allocate_resample_data
@@ -95,11 +94,15 @@ contains
 					   ! rhoy3)
 	  call chsett4     ! changes setting: l_mbb , block length
 	  call confidence  ! estimates [r_low; r_upp]
-	  call deallocate_resample_data
-	  call deallocate1
 	  r = corr
 	  ci = [r_low, r_upp]
 	  taux = taux3
 	  tauy = tauy3
 	end subroutine pearsont3sub
+	
+	subroutine deallocate()
+	  use pearsont3_module
+	  call deallocate_resample_data
+	  call deallocate1	
+	end	subroutine deallocate
 end	module pearsont3sub_module

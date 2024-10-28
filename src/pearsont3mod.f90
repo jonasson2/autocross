@@ -39,7 +39,7 @@ module parameters
   implicit none
   integer, parameter :: nmin=10      ! Minimum number of points
   integer, parameter :: b1=2000      ! Number of bootstrap simulations 1
-  integer, parameter :: b2=1000      ! Number of bootstrap simulations 2
+  integer, parameter :: b2=1000      ! Number of bootstrap simulations 2	 
   real(dp) :: alpha=0.025_dp         ! Confidence level (1 - 2 * alpha)
   integer, parameter :: imax=10000   ! Big integer
   integer, parameter :: ntry=5       ! user input: maximum number of errors
@@ -144,7 +144,6 @@ contains
     !       Allocates t1, x1, y1.
     integer :: error=0
     allocate(t1(n1), x1(n1), y1(n1), stat=error) 
-		print *,"n1= ",n1
     if (error /= 0) then
       print *,'Subroutine allocate0:'
       print *,'  space requested not possible - PearsonT terminates.'
@@ -179,12 +178,12 @@ contains
     use random
     implicit none
     integer, intent(in) :: n          ! number of data points
-    real(dp), dimension(n), intent(in)  :: x      ! original x time series
-    real(dp), dimension(n), intent(in)  :: y      ! original y time series
+    real(dp), dimension(:), intent(in)  :: x      ! original x time series
+    real(dp), dimension(:), intent(in)  :: y      ! original y time series
     integer, intent(in) :: l          ! block length
-    real(dp), dimension(n), intent(out) :: x_resample   ! bootstrap resampled x
+    real(dp), dimension(:), intent(out) :: x_resample   ! bootstrap resampled x
     ! time series
-    real(dp), dimension(n), intent(out) :: y_resample   ! bootstrap resampled y
+    real(dp), dimension(:), intent(out) :: y_resample   ! bootstrap resampled y
     ! time series
     !
     ! Pairwise Moving Block bootstrap resampling Algorithm 7.2 and 3.1 in
@@ -432,7 +431,6 @@ contains
     !  Form bootstrap resamples x3_resample1 and y3_resample1 and store it
     !  Estimate Pearson's correlation coefficient, r_resample1 and store it
     !
-		print*,"call bootsrap 1"
     do j=1,b1
       call bootstrap(n2,x3,y3,l_mbb,x3_resample1(j,1:n2),y3_resample1(j,1:n2))
       call pearsn(x3_resample1(j,1:n2),y3_resample1(j,1:n2),n2,r_resample1(j))
@@ -483,7 +481,6 @@ contains
       call tic()
       bootstrap_time = 0
       pearsn_time = 0
-			print*,"call bootsrap 1"
       do k=1,b2
         call bootstrap(n2,x3_resample1(j,1:n2),y3_resample1(j,1:n2),l_mbb, &
           x3_resample2(1:n2),y3_resample2(1:n2))
@@ -832,7 +829,6 @@ contains
         ' trend(y)      ',                                         &
         ' x-detrended   ',                                         &
         ' y-detrended   '
-				print *, " n2= ",n2
       do i=1,n2
         write (unit=1,fmt='(7(1x,es14.6))') t2(i),x2(i),y2(i),        &
           x2(i)-x3(i),              &
@@ -1064,7 +1060,7 @@ contains
     implicit none
     !       Pearson's correlation coefficient (Numerical Recipes, modified).
     integer, intent(in) :: n
-    real(dp), dimension(n), intent(in) :: x,y
+    real(dp), dimension(:), intent(in) :: x,y
     real(dp), intent(out) :: r
     real(dp), parameter :: tiny=1.0e-08_dp
     real(dp), dimension(n) :: xt,yt
@@ -1464,7 +1460,7 @@ contains
     use precision
     implicit none
     integer, intent(in) :: n
-    real(dp), dimension(n), intent(in) :: x
+    real(dp), dimension(:), intent(in) :: x
     real(dp), intent(out) :: rho
     !       Estimates autocorrelation coefficient (equidistant data).
     integer i
@@ -1499,8 +1495,8 @@ contains
     use meanvar_module
     implicit none
     integer, intent(in) :: n        ! number of data points
-    real(dp), dimension(n), intent(in) :: t_in  ! time
-    real(dp), dimension(n), intent(in) :: x_in  ! time-series values
+    real(dp), dimension(:), intent(in) :: t_in  ! time
+    real(dp), dimension(:), intent(in) :: x_in  ! time-series values
     real(dp), intent(out) :: tau    ! result: persistence time tau
     real(dp), intent(out) :: rhoout ! result: equivalent autocorrelation
     ! coefficient

@@ -58,6 +58,8 @@ program pear
   use result1
   use pearsont3_module
 	use data1
+	use data2
+	use setting
   use random
   use time
   implicit none
@@ -96,5 +98,5 @@ program pear
   ! 4.    Output and exit
   !       ==============
   call output
-  call deallocate1
+  call deallocate
 end program pear
