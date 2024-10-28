@@ -1,0 +1,15 @@
+﻿FOLDERS
+double        Double precision version of NR-programs
+orig          Original packages for PearsonT3, Redfit-X and NR
+modules       Fortran module files
+obj           Fortran object files
+src           Fortran source files
+bin           Executeables
+specfun       Various Fortran files to replace licensed parts of original
+run           Input and output data files
+
+RUNNING REDFIT-X
+source bin/setpath.sh
+change directory to run
+edit redfit-x.cfg
+./redfit-x.cfg

@@ -1,0 +1,2 @@
+To compile many of these programs include -I../nr in the compile command, e.g.:
+gfortran -I ../nr -o testmeanvar testmeanvar.f90
