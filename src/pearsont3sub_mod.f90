@@ -62,7 +62,8 @@ contains
 	  use time
 		use setting, only : n1,n2
 	  implicit none
-		real(dp) :: t1(:), x1(:), y1(:), alpha, corr, ci(2), taux, tauy
+		real(dp), intent(in) :: t1(:), x1(:), y1(:), alpha
+		real(dp), intent(out) :: corr, ci(2), taux, tauy
 	  integer :: i1
 	  !
 	  ! 1.    Welcome
