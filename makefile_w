@@ -1,0 +1,50 @@
+FC = gfortran
+SRC = src
+OBJ = obj
+BIN = .
+MOD = modules
+MODOBJ = $(addprefix $(OBJ)/,pearsont3mod.o modules.o pearsont3sub_mod.o)
+
+CFLAGS = -O3 -J$(MOD)
+LFLAGS = -I$(MOD)
+
+# Add debug flags for debugging
+DEBUGFLAGS = -g -fbacktrace -fcheck=all
+RELEASEFLAGS = -O3
+FLAGS = $(if $(DEBUG),$(DEBUGFLAGS),$(RELEASEFLAGS))
+
+
+SOURCES = $(wildcard $(SRC)/*.f90)
+$(info /)
+$(info $(SOURCES))
+$(info $(SRC))
+OBJECTS = $(patsubst $(SRC)/%.f90,$(OBJ)/%.o,$(SOURCES))
+EXECUTABLES = $(BIN)/pearsont3$(EXE) $(BIN)/redfit-x$(EXE)
+$(info $(OBJECTS))
+
+all: $(EXECUTABLES)
+
+$(OBJ)/%.o: $(SRC)/%.f90
+	-mkdir $(OBJ)
+	-mkdir $(MOD)
+	$(FC) $(CFLAGS) $(FLAGS) -c $< -o $@
+
+$(BIN)/pearsont3$(EXE): $(OBJECTS)
+	-mkdir $(BIN)
+	$(FC) $(LFLAGS) $(FLAGS) $^ -o $@
+
+$(BIN)/redfit-x$(EXE): $(OBJECTS)
+	-mkdir $(BIN)
+	$(FC) $(LFLAGS) $(FLAGS) $^ -o $@
+
+pears:
+	cd run && time pearsont3 && cd ..
+
+clean:
+	if exist "$(OBJ)" del /F /Q "$(OBJ)\*.o"
+	if exist "$(MOD)" del /F /Q "$(MOD)\*.mod"
+	if exist "$(BIN)" del /F /Q "$(BIN)\*.exe"
+	if exist "$(OBJ)" rmdir /S /Q "$(OBJ)"
+	if exist "$(MOD)" rmdir /S /Q "$(MOD)"
+
+.PHONY: all clean
