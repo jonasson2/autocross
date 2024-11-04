@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Fortran Program",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/pearsont3",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "make_debug"
+        }
+    ]
+}
