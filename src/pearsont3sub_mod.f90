@@ -1,4 +1,4 @@
-! Subroutine interface to PearsonT3 
+! Subroutine interface to PearsonT3
 !
 ! Estimating Pearson's correlation coefficient with calibrated bootstrap
 ! confidence interval from serially dependent time series
@@ -54,55 +54,55 @@
 module pearsont3sub_module
 contains
 
-	subroutine pearsont3sub(t1, x1, y1, alpha, corr, ci, taux, tauy)
-	  use result1
-		use data2
-	  use pearsont3_module
-	  use random
-	  use time
-		use setting, only : n1,n2
-	  implicit none
-		real(dp) :: t1(:), x1(:), y1(:), alpha, corr, ci(2), taux, tauy
-	  integer :: i1
-	  !
-	  ! 1.    Welcome
-	  !       =======
-	  call ranseed()
-	  !call ranseed(42)
-	  !
-	  ! 2.    Data
-	  !       =====
-	  !call chsett2    ! changes setting: n1
-	  !call allocate0  ! t1, x1, y1
-	  !call init0      ! t1, x1, y1
-	  !call read1      ! reads data 
-	  !
-	  ! 3.    Time interval extraction and calculation
-	  !       =====================================
-	  n1 = size(t1)
-		call init1a           ! n2=n1
-	  call calc_t_inv_lambda      ! calculates percentage point tv(lambda) over a
-								  ! lambda grid (Calibrated CI)
-	  call allocate1              ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
-								  ! x3_resample2, y3_resample2
-	  call allocate_resample_data
-	  call init1b                 ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
-								  ! x3_resample2, y3_resample2
+  subroutine pearsont3sub(t1, x1, y1, alpha, corr, ci, taux, tauy)
+    use result1
+    use data2
+    use pearsont3_module
+    use random
+    use time
+    use setting, only: n1, n2
+    implicit none
+    real(dp) :: t1(:), x1(:), y1(:), alpha, corr, ci(2), taux, tauy
+    integer :: i1
+    !
+    ! 1.    Welcome
+    !       =======
+    call ranseed()
+    !call ranseed(42)
+    !
+    ! 2.    Data
+    !       =====
+    !call chsett2    ! changes setting: n1
+    !call allocate0  ! t1, x1, y1
+    !call init0      ! t1, x1, y1
+    !call read1      ! reads data
+    !
+    ! 3.    Time interval extraction and calculation
+    !       =====================================
+    n1 = size(t1)
+    call init1a           ! n2=n1
+    call calc_t_inv_lambda      ! calculates percentage point tv(lambda) over a
+    ! lambda grid (Calibrated CI)
+    call allocate1              ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
+    ! x3_resample2, y3_resample2
+    call allocate_resample_data
+    call init1b                 ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
+    ! x3_resample2, y3_resample2
 
-	  call r_est       ! detrends (x2->x3, y2->y3), estimates r(x3, y3)
-	  call tauest      ! estimates persistence times taux3, tauy3 and rhox3 and
-					   ! rhoy3)
-	  call chsett4     ! changes setting: l_mbb , block length
-	  call confidence  ! estimates [r_low; r_upp]
-	  r = corr
-	  ci = [r_low, r_upp]
-	  taux = taux3
-	  tauy = tauy3
-	end subroutine pearsont3sub
-	
-	subroutine deallocate()
-	  use pearsont3_module
-	  call deallocate_resample_data
-	  call deallocate1	
-	end	subroutine deallocate
-end	module pearsont3sub_module
+    call r_est       ! detrends (x2->x3, y2->y3), estimates r(x3, y3)
+    call tauest      ! estimates persistence times taux3, tauy3 and rhox3 and
+    ! rhoy3)
+    call chsett4     ! changes setting: l_mbb , block length
+    call confidence  ! estimates [r_low; r_upp]
+    r = corr
+    ci = [r_low, r_upp]
+    taux = taux3
+    tauy = tauy3
+  end subroutine pearsont3sub
+
+  subroutine deallocate ()
+    use pearsont3_module
+    call deallocate_resample_data
+    call deallocate1
+  end subroutine deallocate
+end module pearsont3sub_module

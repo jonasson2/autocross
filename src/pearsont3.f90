@@ -52,14 +52,13 @@
 ! 6) Now licensed with MIT license
 !=============================================================================
 
-
 program pear
   use pearsont3sub_module
   use result1
   use pearsont3_module
-	use data1
-	use data2
-	use setting
+  use data1
+  use data2
+  use setting
   use random
   use time
   implicit none
