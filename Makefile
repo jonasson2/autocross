@@ -1,4 +1,3 @@
-# Breytt af KBOx
 FC = gfortran
 SRC = src
 OBJ = obj
@@ -14,32 +13,48 @@ DEBUGFLAGS = -g -fbacktrace -fcheck=all
 RELEASEFLAGS = -O3
 FLAGS = $(if $(DEBUG),$(DEBUGFLAGS),$(RELEASEFLAGS))
 
-SOURCES = $(wildcard $(SRC)/*.f90)
-OBJECTS = $(patsubst $(SRC)/%.f90,$(OBJ)/%.o,$(SOURCES))
-EXECUTABLES = $(BIN)/pearsont3 $(BIN)/redfit-x
+# Detect the OS
+ifeq ($(OS),Windows_NT)
+    RM = del /F /Q
+    RMDIR = rmdir /S /Q
+    SEP = /
+    EXE = .exe
+else
+    RM = rm -f
+    RMDIR = rm -rf
+    SEP = /
+    EXE =
+endif
+
+SOURCES = $(wildcard $(SRC)$(SEP)*.f90)
+$(info $(SEP))
+$(info $(SOURCES))
+$(info $(SRC))
+OBJECTS = $(patsubst $(SRC)$(SEP)%.f90,$(OBJ)$(SEP)%.o,$(SOURCES))
+EXECUTABLES = $(BIN)$(SEP)pearsont3$(EXE) $(BIN)$(SEP)redfit-x$(EXE)
 $(info $(OBJECTS))
 
 all: $(EXECUTABLES)
 
-$(OBJ)/pearsont3.o: $(MODOBJ)
-
-$(BIN)/pearsont3: $(OBJECTS) 
-	mkdir -p $(BIN)
-	$(FC) $(LFLAGS) $(FLAGS) $^ -o $@
-
-$(BIN)/redfit-x: $(OBJECTS)
-	mkdir -p $(BIN)
-	$(FC) $(LFLAGS) $(FLAGS) $^ -o $@
-
-$(OBJ)/%.o: $(SRC)/%.f90
-	mkdir -p $(OBJ) $(MOD)
+$(OBJ)$(SEP)%.o: $(SRC)$(SEP)%.f90
+	-mkdir $(OBJ)
+	-mkdir $(MOD)
 	$(FC) $(CFLAGS) $(FLAGS) -c $< -o $@
 
-clean:
-	rm -rf $(OBJ)/* $(MOD)/* $(BIN)/*.exe
+$(BIN)$(SEP)pearsont3$(EXE): $(OBJECTS)
+	-mkdir $(BIN)
+	$(FC) $(LFLAGS) $(FLAGS) $^ -o $@
+
+$(BIN)$(SEP)redfit-x$(EXE): $(OBJECTS)
+	-mkdir $(BIN)
+	$(FC) $(LFLAGS) $(FLAGS) $^ -o $@
 
 pears:
 	cd run && time pearsont3 && cd ..
+
+clean:
+	-$(RM) $(OBJ)$(SEP)*.o $(MOD)$(SEP)*.mod $(BIN)$(SEP)*$(EXE)
+	-$(RMDIR) $(OBJ) $(MOD)
 
 .PHONY: all clean
 
