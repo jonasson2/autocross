@@ -54,7 +54,7 @@
 !module pearsont3sub_mod
 !contains
 
-  subroutine pearsont3sub(t1, x1, y1, alpha, corr, ci, taux, tauy)
+  subroutine pearsont3sub(n, t1, x1, y1, alpha, corr, ci, taux, tauy)
     use result1
     use data2
     use pearsont3_module
@@ -62,9 +62,12 @@
     use time
     use setting, only: n1, n2
     implicit none
-		real(dp), intent(in) :: t1(:), x1(:), y1(:), alpha
+    integer, intent(in) :: n
+		real(dp), intent(in) :: t1(n), x1(n), y1(n), alpha
 		real(dp), intent(out) :: corr, ci(2), taux, tauy
     integer :: i1
+    return
+    print *, 't1=', t1
     !
     ! 1.    Welcome
     !       =======
@@ -80,9 +83,12 @@
     !
     ! 3.    Time interval extraction and calculation
     !       =====================================
+    print *, 'n1=', n1
     n1 = size(t1)
     call init1a           ! n2=n1
+    print *, 'after init1a'
     call calc_t_inv_lambda      ! calculates percentage point tv(lambda) over a
+    print *, 'after calc_t_inv_lambda'
     ! lambda grid (Calibrated CI)
     call allocate1              ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
     ! x3_resample2, y3_resample2

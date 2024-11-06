@@ -10,14 +10,15 @@
 #' @return A list containing the estimated correlation, confidence interval values, and persistence times.
 #' @export
 estimate_CI <- function(time, x.series, y.series, alpha = 0.05) {
+  n = length(time)
   # Validate inputs
-  if (!is.numeric(time) || length(time) < 2) {
+  if (!is.numeric(time) || n < 2) {
     rlang::abort("Time must be a numeric vector with at least two elements.")
   }
-  if (!is.numeric(x.series) || length(x.series) != length(time)) {
+  if (!is.numeric(x.series) || length(x.series) != n) {
     rlang::abort("X-series must be a numeric vector of the same length as time.")
   }
-  if (!is.numeric(y.series) || length(y.series) != length(time)) {
+  if (!is.numeric(y.series) || length(y.series) != n) {
     rlang::abort("Y-series must be a numeric vector of the same length as time.")
   }
   if (!is.numeric(alpha) || alpha <= 0 || alpha >= 1) {
@@ -25,17 +26,19 @@ estimate_CI <- function(time, x.series, y.series, alpha = 0.05) {
   }
 
   # Call the Fortran subroutine
-  result <- .Fortran("_pearsont3sub",
-                     as.numeric(time),
-                     as.numeric(x.series),
-                     as.numeric(y.series),
-                     as.numeric(alpha),
-                     r = double(1),
-                     ci = double(2),
-                     taux = double(1),
+  print(paste('n=', n))
+  print(paste('time=', time))
+  result <- .Fortran("pearsont3sub", n, time, x.series, y.series, alpha,
+                     r = double(1), ci = double(2), taux = double(1),
                      tauy = double(1))
 
   # Pack results into value output
+  # result = list(
+  #   r = 0.5,
+  #   ci = c(0.4, 0.6),
+  #   taux = 3.0,
+  #   tauy = 4.0
+  # )
   list(
     correlation = result$r,
     confidence_interval = result$ci,

@@ -63,7 +63,7 @@ program pear
   use time
   implicit none
   character(len=1) :: c1
-  integer :: i1
+  integer :: i1, n
 	real(dp) :: ci(2)
   !
   ! 1.    Welcome
@@ -80,7 +80,9 @@ program pear
   call allocate0  ! t1, x1, y1
   call init0      ! t1, x1, y1
   call read1      ! reads data
-  call pearsont3sub(t1, x1, y1, 0.05d0, r, ci, taux3, tauy3) 
+  n = size(t1)
+  print *, 'n=', n
+  call pearsont3sub(n, t1, x1, y1, 0.05d0, r, ci, taux3, tauy3) 
   r_low = ci(1)
   r_upp = ci(2)
   
