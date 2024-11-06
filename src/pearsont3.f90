@@ -53,7 +53,7 @@
 !=============================================================================
 
 program pear
-  use pearsont3sub_mod
+  !use pearsont3sub_mod
   use result1
   use pearsont3_module
   use data1

@@ -51,8 +51,8 @@
 ! 5) Updated author list
 ! 6) Now licensed with MIT license
 !=============================================================================
-module pearsont3sub_mod
-contains
+!module pearsont3sub_mod
+!contains
 
   subroutine pearsont3sub(t1, x1, y1, alpha, corr, ci, taux, tauy)
     use result1
@@ -106,4 +106,4 @@ contains
     call deallocate_resample_data
     call deallocate1
   end subroutine deallocate
-end module pearsont3sub_mod
+!end module pearsont3sub_mod

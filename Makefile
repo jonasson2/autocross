@@ -6,11 +6,11 @@ BIN = .
 MOD = modules
 MODOBJ = $(addprefix $(OBJ)/,pearsont3mod.o modules.o pearsont3sub_mod.o)
 
-CFLAGS = -O3 -J$(MOD)
+CFLAGS = -J$(MOD)
 LFLAGS = -I$(MOD)
 
 # Add debug flags for debugging
-DEBUGFLAGS = -g -fbacktrace -fcheck=all
+DEBUGFLAGS = -g -O0 -fbacktrace -fcheck=all
 RELEASEFLAGS = -O3
 FLAGS = $(if $(DEBUG),$(DEBUGFLAGS),$(RELEASEFLAGS))
 
@@ -36,7 +36,7 @@ $(OBJ)/%.o: $(SRC)/%.f90
 	$(FC) $(CFLAGS) $(FLAGS) -c $< -o $@
 
 clean:
-	rm -rf $(OBJ)/* $(MOD)/* $(BIN)/*.exe
+	rm -rf $(OBJ)/* $(MOD)/* $(EXECUTABLES)
 
 pears:
 	cd run && time pearsont3 && cd ..

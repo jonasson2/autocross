@@ -10,3 +10,7 @@ a.out
 *.dat
 pearsont3
 redfit-x
+Icon*
+*.so
+orig/
+.vscode/
