@@ -1,4 +1,3 @@
-
 module data1
   ! Data file (original data): n1 rows of (t1, x1, y1).
   use precision
@@ -577,6 +576,18 @@ contains
   !
   !=============================================================================
   !
+  subroutine deallocate0
+    use data1, only t1, x1, y1
+    implicit none
+    integer :: error=0
+    deallocate(t1, x1, y1, stat=error)
+    if (error /= 0) then
+      print *,'Subroutine deallocate0:'
+      print *,'  Unexpected deallocation error - PearsonT terminates.'
+      stop
+    end if
+  end subroutine deallocate0
+
   subroutine deallocate1
     use data2, only: t2,x2,y2,x3,y3,x3_resample1,y3_resample1,  &
       x3_resample2,y3_resample2
@@ -589,7 +600,7 @@ contains
       x3_resample2,y3_resample2, stat=error)
     !
     if (error /= 0) then
-      print *,'Subroutine deallocate:'
+      print *,'Subroutine deallocate1:'
       print *,'  Unexpected deallocation error - PearsonT terminates.'
       stop
     end if
@@ -865,12 +876,14 @@ contains
   subroutine init1b
     use precision
     use data1, only: t1,x1,y1
-		use data2, only: t2,x2,x3,y2,y3,x3_resample1,y3_resample1,  &
+    use data2, only: t2,x2,x3,y2,y3,x3_resample1,y3_resample1,  &
       x3_resample2,y3_resample2  			
     implicit none
     !       Initializes t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
     !       x3_resample2, y3_resample2
+    return
     t2=t1
+    return
     x2=x1
     y2=y1
     x3=x2
@@ -1419,38 +1432,39 @@ contains
   !=============================================================================
   !
   subroutine r_est
-    use precision
-    use data2, only: t2,x2,y2,x3,y3
-    use result1, only: r
-    use setting, only: dtrtype,n2
-    implicit none
-    !       Estimates Pearson's correlation coefficient r(x2, y2). x2 and y2 are
-    !       detrended (linearly or mean), renamed x3, y3, prior to estimation.
-    integer :: i
-    real(dp) :: a=-999.0_dp
-    real(dp) :: b=-999.0_dp
-    real(dp) :: mux=-999.0_dp        
-    real(dp) :: muy=-999.0_dp 
-    if (dtrtype .eq. 'l') then
-      call fit(t2,x2,n2,a,b)
-      do i=1,n2
-        x3(i)=x2(i)-(a+b*t2(i))
-      end do
-      call fit(t2,y2,n2,a,b)
-      do i=1,n2
-        y3(i)=y2(i)-(a+b*t2(i))
-      end do
-    else if (dtrtype .eq. 'm') then
-      mux=sum(x2)/n2
-      do i=1,n2
-        x3(i)=x2(i)-mux
-      end do
-      muy=sum(y2)/n2
-      do i=1,n2
-        y3(i)=y2(i)-muy
-      end do
-    end if
-    call pearsn(x3,y3,n2,r)
+    ! use precision
+    ! !use data2, only: t2,x2,y2,x3,y3
+    ! !use result1, only: r
+    ! !use setting, only: dtrtype,n2
+    ! implicit none
+    ! !       Estimates Pearson's correlation coefficient r(x2, y2). x2 and y2 are
+    ! !       detrended (linearly or mean), renamed x3, y3, prior to estimation.
+    ! integer :: i
+    ! real(dp) :: a=-999.0_dp
+    ! real(dp) :: b=-999.0_dp
+    ! real(dp) :: mux=-999.0_dp        
+    ! real(dp) :: muy=-999.0_dp
+    return
+    ! if (dtrtype .eq. 'l') then
+    !   call fit(t2,x2,n2,a,b)
+    !   do i=1,n2
+    !     x3(i)=x2(i)-(a+b*t2(i))
+    !   end do
+    !   call fit(t2,y2,n2,a,b)
+    !   do i=1,n2
+    !     y3(i)=y2(i)-(a+b*t2(i))
+    !   end do
+    ! else if (dtrtype .eq. 'm') then
+    !   mux=sum(x2)/n2
+    !   do i=1,n2
+    !     x3(i)=x2(i)-mux
+    !   end do
+    !   muy=sum(y2)/n2
+    !   do i=1,n2
+    !     y3(i)=y2(i)-muy
+    !   end do
+    ! end if
+    ! call pearsn(x3,y3,n2,r)
     !
   end subroutine r_est
   !
