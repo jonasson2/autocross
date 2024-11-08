@@ -8,6 +8,7 @@ bin/
 *~
 a.out
 *.dat
+*.o
 pearsont3
 redfit-x
 Icon*
