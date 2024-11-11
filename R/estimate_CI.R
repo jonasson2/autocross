@@ -21,7 +21,7 @@ estimate_CI <- function(time, x.series, y.series, alpha = 0.05) {
   print(typeof(alpha))
   flush.console()
   #result = .Fortran('ss', x = x.series, s = double(1))
-  result <- .Fortran("pt3", n = n, time = time, x = x.series,
+  result <- .Fortran("pearsont3", n = n, time = time, x = x.series,
                      y = y.series, alpha = alpha,
                      r = double(1), ci = double(2), taux = double(1),
                      tauy = double(1))

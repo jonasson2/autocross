@@ -108,7 +108,7 @@ module setting
   implicit none
   character (len=79) :: datafile
   character (len=1) :: dtrtype='m' ! detrending type put to 'm', mean    
-  integer :: n1=999               ! data size (original)
+  integer :: n1=-999               ! data size (original)
   integer :: n2=-999               ! data size (time interval)      
   integer :: l_mbb = -999.0_dp     ! block length for MBB-moving block bootstrap
 end module setting
@@ -142,12 +142,14 @@ contains
     implicit none
     !       Allocates t1, x1, y1.
     integer :: error=0
-    allocate(t1(n1), x1(n1), y1(n1), stat=error) 
-    if (error /= 0) then
-      print *,'Subroutine allocate0:'
-      print *,'  space requested not possible - PearsonT terminates.'
-      stop
-    end if
+    allocate(t1(n1))
+    allocate(x1(n1))
+    allocate(y1(n1)) 
+    ! if (error /= 0) then
+    !   print *,'Subroutine allocate0:'
+    !   print *,'  space requested not possible - PearsonT terminates.'
+    !   stop
+    ! end if
   end subroutine allocate0
   !
   !=============================================================================
@@ -577,7 +579,7 @@ contains
   !=============================================================================
   !
   subroutine deallocate0
-    use data1, only t1, x1, y1
+    use data1, only: t1, x1, y1
     implicit none
     integer :: error=0
     deallocate(t1, x1, y1, stat=error)
@@ -688,7 +690,7 @@ contains
   subroutine info1(c,filec)
     use setting, only: datafile,n1,n2
     use data1, only: t1
-		use data2, only: t2
+    use data2, only: t2
     implicit none
     character(len=1), intent(in) :: c
     character(len=13), intent(in), optional :: filec
@@ -881,9 +883,7 @@ contains
     implicit none
     !       Initializes t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
     !       x3_resample2, y3_resample2
-    return
     t2=t1
-    return
     x2=x1
     y2=y1
     x3=x2
@@ -1555,7 +1555,7 @@ contains
     !       ==========
     !       => start value of a = 1/e
     !
-    delta=abs(t(n)-t(1))/(n-1)    ! average sampling    
+    delta=abs(t(n)-t(1))/(n-1)    ! average sampling
     call rhoest(n,x,rho)     ! rho estimated for x from eq 2.4 in Mudelsee(2010)
     if (rho <= 0.0_dp) then
       rho=0.05_dp
@@ -1570,7 +1570,7 @@ contains
     !ls - least square function
     !minls - minimization of least-squares function ls
     !brent - Brent's search - minimum ls value
-    !  
+    !
     call minls(n,t,x,amin,mult)
     !
     ! 5. Result ! checked if amin (the value for a) is equal or less than zero,

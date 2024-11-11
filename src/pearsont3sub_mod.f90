@@ -67,6 +67,7 @@
 		real(dp), intent(in) :: t(n), x(n), y(n), alpha
 		real(dp), intent(out) :: corr, ci(2), taux, tauy
     integer :: i1
+    logical :: allocate0_here
     !
     ! 1.    Welcome
     !       =======
@@ -77,8 +78,9 @@
     !       =====
     !call chsett2    ! changes setting: n1
     n1 = n
-    call allocate0  ! t1, x1, y1
-    call init0      ! t1, x1, y1
+    allocate0_here = .not.allocated(t1)
+    if (allocate0_here) call allocate0  ! t1, x1, y1
+    !call init0      ! t1, x1, y1
     !call read1      ! reads data
     t1 = t
     x1 = x
@@ -88,31 +90,29 @@
     !       =====================================
     n1 = n
     call init1a           ! n2=n1
-    print *, 'after init1a'
     call calc_t_inv_lambda      ! calculates percentage point tv(lambda) over a
-    print *, 'after calc_t_inv_lambda'
     ! lambda grid (Calibrated CI)
     call allocate1              ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
-    ! x3_resample2, y3_resample2
+    ! x3_resample2, Dy3_resample2
     call allocate_resample_data
-    call init1b                 ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
+    call init1b                 ! t2, x2, y2, x3, y3, x3_resample1,
+    ! y3_resample1,
     ! x3_resample2, y3_resample2
     call r_est       ! detrends (x2->x3, y2->y3), estimates r(x3, y3)
     call tauest      ! estimates persistence times taux3, tauy3 and rhox3 and
     ! rhoy3)
     call chsett4     ! changes setting: l_mbb , block length
     call confidence  ! estimates [r_low; r_upp]
-    r = corr
+    r = corr         !
     ci = [r_low, r_upp]
     taux = taux3
     tauy = tauy3
-    call deallocate
+    print *,'at (1)'
+    if (allocate0_here) then
+      call deallocate0
+      call deallocate_resample_data
+      call deallocate1
+    end if
   end subroutine pearsont3sub
   
-  subroutine deallocate ()
-    use pearsont3_module
-    call deallocate_resample_data
-    call deallocate1
-    call deallocate0
-  end subroutine deallocate
 !end module pearsont3sub_mod

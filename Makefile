@@ -17,11 +17,15 @@ FLAGS = $(if $(DEBUG),$(DEBUGFLAGS),$(RELEASEFLAGS))
 SOURCES = $(wildcard $(SRC)/*.f90)
 OBJECTS = $(patsubst $(SRC)/%.f90,$(OBJ)/%.o,$(SOURCES))
 EXECUTABLES = $(BIN)/pearsont3 $(BIN)/redfit-x
-$(info $(OBJECTS))
+DYNAMICLIBRARIES=pearsont3.so
+# $(info $(OBJECTS))
 
-all: $(EXECUTABLES)
+all: $(EXECUTABLES) $(DYNAMICLIBRARIES)
 
 $(OBJ)/pearsont3.o: $(MODOBJ)
+
+pearsont3.so: $(OBJECTS)
+	$(FC) $(LFLAGS) -shared -fPIC $(FLAGS) $^ -o $@  
 
 $(BIN)/pearsont3: $(OBJECTS) 
 	mkdir -p $(BIN)
@@ -36,10 +40,9 @@ $(OBJ)/%.o: $(SRC)/%.f90
 	$(FC) $(CFLAGS) $(FLAGS) -c $< -o $@
 
 clean:
-	rm -rf $(OBJ)/* $(MOD)/* $(EXECUTABLES)
+	rm -rf $(OBJ)/* $(MOD)/* $(EXECUTABLES) $(DYNAMICLIBRARIES)
 
-pears:
+pearson:
 	cd run && time pearsont3 && cd ..
 
 .PHONY: all clean
-

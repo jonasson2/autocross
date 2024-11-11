@@ -307,7 +307,7 @@ contains
   !     the same accuracy.
   !     
   !###  Reference
-  !     * Richard brent, "algorithms for minimization without derivatives",
+  !     * Richard Brent, "Algorithms for minimization without derivatives",
   !     prentice - hall, inc. (1973).
   !     
   !###  See also
@@ -339,7 +339,7 @@ contains
     real(wp),parameter :: sqrteps = sqrt(epsilon(1.0_wp))
 
     !     initialization
-
+    print *,'beginning of newbrent'
     a = ax
     ! b = bx
     ! v = a + c*(b - a)
@@ -355,6 +355,7 @@ contains
     do                        !  main loop starts here
 
       xm = half*(a + b)
+      print *, 'xm=', xm
       tol1 = sqrteps*abs(x) + tol/3.0_wp
       tol2 = 2.0_wp*tol1
 

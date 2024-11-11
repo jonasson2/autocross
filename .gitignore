@@ -1,4 +1,5 @@
 .Rproj.user
+.Rhistory
 *.mod
 obj/
 run/
@@ -13,5 +14,4 @@ pearsont3
 redfit-x
 Icon*
 *.so
-orig/
 .vscode/

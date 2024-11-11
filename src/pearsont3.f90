@@ -1,4 +1,4 @@
- ! PearsonT, version 2.0, April 2024
+! PearsonT, version 2.0, April 2024
 !
 ! Estimating Pearson's correlation coefficient with calibrated bootstrap
 ! confidence interval from serially dependent time series
@@ -64,7 +64,7 @@ program pear
   implicit none
   character(len=1) :: c1
   integer :: i1, n
-	real(dp) :: ci(2)
+  real(dp) :: ci(2)
   !
   ! 1.    Welcome
   !       =======
@@ -81,23 +81,30 @@ program pear
   call init0      ! t1, x1, y1
   call read1      ! reads data
   n = size(t1)
-  print *, 'n=', n
-  call pearsont3sub(n, t1, x1, y1, 0.05d0, r, ci, taux3, tauy3) 
+  call pearsont3sub(n, t1, x1, y1, 0.05d0, r, ci, taux3, tauy3)
+  print *, 'after pearsont3sub'
   r_low = ci(1)
   r_upp = ci(2)
-  
+
   !
   ! 3.    Time interval extraction and calculation
   !       =====================================
-	call info1('p')  ! extracted time interval
-	call info2('p')  ! persistence times
-	call info3('p')  ! detrending method 
-	call info4('p')  ! r [ r_low; r_upp ]
-	call tocprint('after info4')
-	call decis1(c1)  ! decision tree: Part 1
+  call info1('p')  ! extracted time interval
+  call info2('p')  ! persistence times
+  call info3('p')  ! detrending method 
+  call info4('p')  ! r [ r_low; r_upp ]
+  print *, '(3)'
+  call tocprint('after info4')
+  print *, '(4)'
+  call decis1(c1)  ! decision tree: Part 1
+  print *, '(5)'
   !
   ! 4.    Output and exit
   !       ==============
   call output
-  call deallocate
+  print *, '(6)'
+  call deallocate0
+  call deallocate1
+  call deallocate_resample_data
+  print *, '(7)'
 end program pear
