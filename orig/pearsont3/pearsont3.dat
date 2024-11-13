@@ -8,7 +8,7 @@ Persistence time (y):                             3.898
  
 Detrending type:                                  mean
  
-Pearson's r, 95 % confidence interval:            0.471  [  0.269;  0.633 ]
+Pearson's r, 95 % confidence interval:            0.471  [  0.244;  0.649 ]
  
    time           x              y              trend(x)       trend(y)       x-detrended    y-detrended   
    1.500000E+00   2.201000E+01   8.100000E-02   1.441595E+01   4.781644E-02   7.594055E+00   3.318356E-02

@@ -94,7 +94,7 @@ module parameters
 ! 2.    Number of bootstrap simulations
 !       ===============================
 !
-        integer, parameter :: b1=2000
+        integer, parameter :: b1=5 !2000
         integer, parameter :: b2=1000
 !
 ! 3.    Confidence level (1 - 2 * alpha)
@@ -459,19 +459,30 @@ program pear
         call read1      		! reads data
 !
 ! 3.    Time interval extraction and calculation
-!       ======================================
+        !       ======================================
+        print *, '(a)'
         call init1a     			! n2=n1
+        print *, '(b)'
 	call calc_inv_student  	! calculates percentage point tv(alpha) of the Student's t distribution (after alpha and n have been defined)
+        print *, '(c)'
 	call calc_t_inv_lambda	! calculates percentage point tv(lambda) over a lambda grid (Calibrated CI)      
+        print *, '(d)'
         call allocate1  			! t2, x2, y2, x3, y3, x3_resample1, y3_resample1, x3_resample2, y3_resample2
+        print *, '(e)'
         call init1b     			! t2, x2, y2, x3, y3, x3_resample1, y3_resample1, x3_resample2, y3_resample2
+        print *, '(f)'
+
 outer4: do i1=1,imax
 !                call chsett3           ! changes setting: dtrtype
               call r_est               	! detrends (x2->x3, y2->y3)
 					! estimates r(x3, y3)
+        print *, '(g)'
               call tauest             	! estimates persistence times taux3, tauy3 and rhox3 and rhoy3)
+        print *, '(h)'
               call chsett4            	! changes setting: l_mbb , block length
+        print *, '(i)'
               call confidence        	! estimates [r_low; r_upp]
+        print *, '(j)'
               call plot(1)             	! t2, x2, y2
               call plot(2)             	! x2, y2
               call info1('p')          	! extracted time interval
@@ -915,11 +926,6 @@ subroutine confidence
 	   call pearsn(x3_resample1(j,1:n2),y3_resample1(j,1:n2),n2,r_resample1(j))
 	end do
     print *, 'n2,b1=', n2, b1
-    print *, 'x3=', x3_resample1(1,1:5), x3_resample1(1,n2-4:n2)
-    print *, 'x3=', x3_resample1(b1,1:5), x3_resample1(b1,n2-4:n2)
-    print *, 'y3=', y3_resample1(1,1:5), y3_resample1(1,n2-4:n2)
-    print *, 'y3=', y3_resample1(b1,1:5), y3_resample1(b1,n2-4:n2)
-    print *, 'r_=', r_resample1(1:5), r_resample1(b1-4:b1)
 !
 !	1.2 Fisher's z-transformation
 !	=============================
@@ -967,6 +973,7 @@ subroutine confidence
 !	Goes b1=2000 times through the 2nd bootstrap loop
         
 !	
+ print *, '(A)'
 boot:	do j=1,b1
 
 	   If (j ==100) print*, '2nd bootstrap loop working...' 
@@ -1022,13 +1029,13 @@ boot:	do j=1,b1
 	            r_low_resample1(j,l) = r_resample1(j)+t_inv_lambda(l)*se_r_resample2(j)
 	            r_upp_resample1(j,l) = r_resample1(j)-t_inv_lambda(l)*se_r_resample2(j)
 	         end do
-	   end if
+        end if
+        print *,'r_resample1',r_resample1
 !		
 !
 !	2.5 End of big Bootstrap loop
 !	=============================
 	end do boot
-	
 !	
 !
 ! 3. Determination of two-sides plambda
