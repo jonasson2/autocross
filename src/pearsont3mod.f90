@@ -1432,40 +1432,39 @@ contains
   !=============================================================================
   !
   subroutine r_est
-    ! use precision
-    ! !use data2, only: t2,x2,y2,x3,y3
-    ! !use result1, only: r
-    ! !use setting, only: dtrtype,n2
-    ! implicit none
-    ! !       Estimates Pearson's correlation coefficient r(x2, y2). x2 and y2 are
-    ! !       detrended (linearly or mean), renamed x3, y3, prior to estimation.
-    ! integer :: i
-    ! real(dp) :: a=-999.0_dp
-    ! real(dp) :: b=-999.0_dp
-    ! real(dp) :: mux=-999.0_dp        
-    ! real(dp) :: muy=-999.0_dp
-    return
-    ! if (dtrtype .eq. 'l') then
-    !   call fit(t2,x2,n2,a,b)
-    !   do i=1,n2
-    !     x3(i)=x2(i)-(a+b*t2(i))
-    !   end do
-    !   call fit(t2,y2,n2,a,b)
-    !   do i=1,n2
-    !     y3(i)=y2(i)-(a+b*t2(i))
-    !   end do
-    ! else if (dtrtype .eq. 'm') then
-    !   mux=sum(x2)/n2
-    !   do i=1,n2
-    !     x3(i)=x2(i)-mux
-    !   end do
-    !   muy=sum(y2)/n2
-    !   do i=1,n2
-    !     y3(i)=y2(i)-muy
-    !   end do
-    ! end if
-    ! call pearsn(x3,y3,n2,r)
-    !
+    use precision
+    use data2, only: t2,x2,y2,x3,y3
+    use result1, only: r
+    use setting, only: dtrtype,n2
+    implicit none
+    !       Estimates Pearson's correlation coefficient r(x2, y2). x2 and y2 are
+    !       detrended (linearly or mean), renamed x3, y3, prior to estimation.
+    integer :: i
+    real(dp) :: a=-999.0_dp
+    real(dp) :: b=-999.0_dp
+    real(dp) :: mux=-999.0_dp        
+    real(dp) :: muy=-999.0_dp
+    if (dtrtype .eq. 'l') then
+      call fit(t2,x2,n2,a,b)
+      do i=1,n2
+        x3(i)=x2(i)-(a+b*t2(i))
+      end do
+      call fit(t2,y2,n2,a,b)
+      do i=1,n2
+        y3(i)=y2(i)-(a+b*t2(i))
+      end do
+    else if (dtrtype .eq. 'm') then
+      mux=sum(x2)/n2
+      do i=1,n2
+        x3(i)=x2(i)-mux
+      end do
+      muy=sum(y2)/n2
+      do i=1,n2
+        y3(i)=y2(i)-muy
+      end do
+    end if
+    call pearsn(x3,y3,n2,r)
+    
   end subroutine r_est
   !
   !=============================================================================
