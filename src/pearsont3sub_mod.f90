@@ -103,7 +103,7 @@ subroutine pearsont3sub(n, t, x, y, alpha, corr, ci, taux, tauy)
   ! rhoy3)
   call chsett4     ! changes setting: l_mbb , block length
   call confidence  ! estimates [r_low; r_upp]
-  r = corr         !
+  corr = r
   ci = [r_low, r_upp]
   taux = taux3
   tauy = tauy3

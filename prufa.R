@@ -27,17 +27,16 @@ estimate_CI <- function(time, x.series, y.series, alpha = 0.05) {
 
 setwd('~/drive/autocross')
 data = read.table('test_data.txt', col.names=c('time', 'x.series', 'y.series'))
-if (is.loaded('pearsont3sub')) dyn.unload('pearsont3.so')
-dyn.load('pearsont3.so')
+
+if (Sys.info()['sysname'] == 'Windows') {
+  if (is.loaded('pearsont3sub')) dyn.unload('pearsont3.dll')
+  dyn.load('pearsont3.dll')
+} else {
+  if (is.loaded('pearsont3sub')) dyn.unload('pearsont3.so')
+  dyn.load('pearsont3.so')
+}
+
 print(data$time)
 #source('R/estimate_CI.R')
-dyn.load('pearsont3.so')
 result = estimate_CI(data$time, data$x.series, data$y.series)
 str(result)
-if (is.loaded('prufa')) dyn.unload('prufa.so')
-dyn.load('prufa.so')
-n = length(data$x.series)
-summa = double(1)
-.Fortran('estimate_CI', n, data$x.series, data$y.series, summa)
-print(paste('summa=', summa))
-
