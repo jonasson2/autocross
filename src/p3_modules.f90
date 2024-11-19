@@ -1,3 +1,12 @@
+! This file contains modules used only by Pearsont3.
+!
+! These were in pearsont3.f90 in version 1. Also there was a module
+! "own_interfaces" with several free-standing subroutines at the end of
+! pearsont3.f90. These are now in the module pearsont3_module, except for minls,
+! lstau, rhoest and tauest_x that have been moved to common_modules.
+!
+! Moreover, the module data1 has been split into data1 and data2.
+
 module data1
   ! Data file (original data): n1 rows of (t1, x1, y1).
   use precision
@@ -640,7 +649,6 @@ contains
   subroutine fit(x,y,ndata,a,b)
     use precision
     implicit none
-    !       Straight line fit (Numerical Recipes, modified).
     integer, intent(in) :: ndata
     real(dp), dimension(ndata), intent(in) :: x,y
     real(dp), intent(out) :: a,b
@@ -897,71 +905,71 @@ contains
   !
   !=============================================================================
   !
-  subroutine interval(c)
-    use precision
-    use data1, only: t1,x1,y1
-		use data2, only: t2,x2,y2,x3,y3,x3_resample1,y3_resample1,  &
-      x3_resample2,y3_resample2
-    use parameters, only: nmin,ntry
-    use setting, only: n1,n2
-    implicit none
-    character(len=1), intent(in) :: c
-    !       Defines new: n2, t2, x2, y2.
-    integer :: i1,i2,j,k1
-    real(dp) :: tl,tr
-    if (c == 'n') then
-      do i1=1,ntry
-        do i2=1,ntry
-          print '(a,i6,a)','New interval must contain at least',nmin,' points'
-          print '(3(a))',  '[left boundary',',',' right boundary]: '
-          read (5,*) tl, tr
-          tl=max(tl,t1(1))
-          tr=min(tr,t1(n1))
-          if (tl < t1(n1) .and. tr > t1(1) .and. tl < tr) exit
-        end do
-        if (i2 > ntry) then
-          print *,'OK - PearsonT terminates.'
-          stop
-        end if
-        if (tl == t1(1)) j=1
-        if (tr == t1(n1)) k1=n1
-        do i2=2,n1
-          if (tl >  t1(i2-1) .and. tl <= t1(i2)) j=i2
-          if (tr >= t1(i2-1) .and. tr <  t1(i2)) k1=i2-1
-        end do
-        n2=k1-j+1
-        if (n2 >= nmin) exit
-        print '(a,i6)','Time interval contains too few points: ',n2
-      end do
-      if (i1 > ntry) then
-        print *,'OK - PearsonT terminates.'
-        stop
-      end if
-      call deallocate1  ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
-      ! x3_resample2, y3_resample2
-      call allocate1     ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
-      ! x3_resample2, y3_resample2
-      do i2=j,k1
-        t2(i2-j+1)=t1(i2)
-        x2(i2-j+1)=x1(i2)
-        y2(i2-j+1)=y1(i2)
-      end do
-      x3=x2
-      y3=y2
-      x3_resample1=-999.0_dp
-      y3_resample1=-999.0_dp
-      x3_resample2=-999.0_dp
-      y3_resample2=-999.0_dp
-    else if (c == 'o') then
-      call init1a        ! n2=n1
-      call deallocate1  ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
-      ! x3_resample2, y3_resample2
-      call allocate1     ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
-      ! x3_resample2, y3_resample2
-      call init1b        ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
-      ! x3_resample2, y3_resample2
-    end if
-  end subroutine interval
+  ! subroutine interval(c)
+  !   use precision
+  !   use data1, only: t1,x1,y1
+  !       	use data2, only: t2,x2,y2,x3,y3,x3_resample1,y3_resample1,  &
+  !     x3_resample2,y3_resample2
+  !   use parameters, only: nmin,ntry
+  !   use setting, only: n1,n2
+  !   implicit none
+  !   character(len=1), intent(in) :: c
+  !   !       Defines new: n2, t2, x2, y2.
+  !   integer :: i1,i2,j,k1
+  !   real(dp) :: tl,tr
+  !   if (c == 'n') then
+  !     do i1=1,ntry
+  !       do i2=1,ntry
+  !         print '(a,i6,a)','New interval must contain at least',nmin,' points'
+  !         print '(3(a))',  '[left boundary',',',' right boundary]: '
+  !         read (5,*) tl, tr
+  !         tl=max(tl,t1(1))
+  !         tr=min(tr,t1(n1))
+  !         if (tl < t1(n1) .and. tr > t1(1) .and. tl < tr) exit
+  !       end do
+  !       if (i2 > ntry) then
+  !         print *,'OK - PearsonT terminates.'
+  !         stop
+  !       end if
+  !       if (tl == t1(1)) j=1
+  !       if (tr == t1(n1)) k1=n1
+  !       do i2=2,n1
+  !         if (tl >  t1(i2-1) .and. tl <= t1(i2)) j=i2
+  !         if (tr >= t1(i2-1) .and. tr <  t1(i2)) k1=i2-1
+  !       end do
+  !       n2=k1-j+1
+  !       if (n2 >= nmin) exit
+  !       print '(a,i6)','Time interval contains too few points: ',n2
+  !     end do
+  !     if (i1 > ntry) then
+  !       print *,'OK - PearsonT terminates.'
+  !       stop
+  !     end if
+  !     call deallocate1  ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
+  !     ! x3_resample2, y3_resample2
+  !     call allocate1     ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
+  !     ! x3_resample2, y3_resample2
+  !     do i2=j,k1
+  !       t2(i2-j+1)=t1(i2)
+  !       x2(i2-j+1)=x1(i2)
+  !       y2(i2-j+1)=y1(i2)
+  !     end do
+  !     x3=x2
+  !     y3=y2
+  !     x3_resample1=-999.0_dp
+  !     y3_resample1=-999.0_dp
+  !     x3_resample2=-999.0_dp
+  !     y3_resample2=-999.0_dp
+  !   else if (c == 'o') then
+  !     call init1a        ! n2=n1
+  !     call deallocate1  ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
+  !     ! x3_resample2, y3_resample2
+  !     call allocate1     ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
+  !     ! x3_resample2, y3_resample2
+  !     call init1b        ! t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
+  !     ! x3_resample2, y3_resample2
+  !   end if
+  ! end subroutine interval
   !
   !=============================================================================
   !
@@ -984,70 +992,6 @@ contains
       invtanh=half*log((one+x)/(one-x))
     end if
   end function invtanh
-  !
-  !=============================================================================
-  !
-  function lstau(a,t,x,n)
-    use precision
-    implicit none
-    integer, intent(in) :: n
-    real(dp), dimension(:), intent(in) :: t
-    real(dp), dimension(:), intent(in) :: x
-    real(dp), intent(in) :: a
-    !       Least-squares function for tau estimation.
-    real(dp) :: lstau
-    integer :: i
-    lstau=0.0_dp
-    do i=2,n
-      lstau=lstau+(x(i)-x(i-1)*sign(1.0_dp,a)*abs(a)**(t(i)-t(i-1)))**2
-    end do
-  end function lstau
-  !
-  !=============================================================================
-  !
-  subroutine minls(n,t,x,amin,nmu_)
-    use precision
-    use newbrent_module
-    implicit none
-    integer, intent(in) :: n
-    real(dp), dimension(:), intent(in) :: t
-    real(dp), dimension(:), intent(in) :: x
-    real(dp), intent(out) :: amin
-    integer, intent(out)  :: nmu_
-    !       Minimizes least-squares function s using Brent's method.
-    !
-    real(dp), parameter :: a_ar1=0.3678794_dp   ! 1/e
-    real(dp), parameter :: tol =3.0e-08_dp      ! Brent's search, precision
-    real(dp), parameter :: tol2 = 1.0e-06_dp    ! Multiple solutions, precision
-    real(dp) :: dum1=-999.0_dp
-    real(dp) :: dum2=-999.0_dp
-    real(dp) :: dum3=-999.0_dp
-    real(dp) :: dum4=-999.0_dp
-    real(dp) :: a_ar11=-999.0_dp
-    real(dp) :: a_ar12=-999.0_dp
-    real(dp) :: a_ar13=-999.0_dp
-    real(dp) :: a, bm, b, bp, c
-    nmu_ = 0
-    a = -2
-    b = a_ar1
-    bm = (b - 1)/2
-    bp = (b + 1)/2
-    c = 2
-    dum1 = newbrent(lstau, a, b,  c, tol, a_ar11, t, x, n)
-    dum2 = newbrent(lstau, b, bp, c, tol, a_ar12, t, x, n)
-    dum3 = newbrent(lstau, a, bm, b, tol, a_ar13, t, x, n) 
-    if ((abs(a_ar12-a_ar11) > tol2 .and. abs(a_ar12-a_ar1) > tol2) .or. &
-      (abs(a_ar13-a_ar11) > tol2 .and. abs(a_ar13-a_ar1) > tol2))     &
-      nmu_=1
-    dum4 = min(dum1, dum2, dum3)
-    if (dum4 == dum2) then
-      amin = a_ar12
-    else if (dum4 == dum3) then
-      amin = a_ar13
-    else
-      amin = a_ar11
-    end if
-  end subroutine minls
   !
   !=============================================================================
   !
@@ -1464,29 +1408,11 @@ contains
       end do
     end if
     call pearsn(x3,y3,n2,r)
-    
+   
   end subroutine r_est
   !
   !=============================================================================
   !
-  subroutine rhoest(n,x,rho)
-    use precision
-    implicit none
-    integer, intent(in) :: n
-    real(dp), dimension(:), intent(in) :: x
-    real(dp), intent(out) :: rho
-    !       Estimates autocorrelation coefficient (equidistant data).
-    integer i
-    real(dp) :: sum1
-    real(dp) :: sum2  
-    sum1=0.0_dp
-    sum2=0.0_dp    
-    do i=2,n
-      sum1=sum1+x(i)*x(i-1)
-      sum2=sum2+x(i)**2.0_dp
-    end do
-    rho=sum1/sum2
-  end subroutine rhoest
   !
   !=============================================================================
   !
@@ -1494,6 +1420,7 @@ contains
     use data2, only: t2,x3,y3
     use result1, only: taux3,tauy3,rhox3,rhoy3
     use setting, only: n2
+    use minls_module
     implicit none
     !
     call tauest_x(t2, x3, n2, taux3, rhox3)
@@ -1503,117 +1430,6 @@ contains
   !
   !=============================================================================
   !
-  subroutine tauest_x(t_in, x_in, n, tau, rhoout)
-    use precision
-    use meanvar_module
-    implicit none
-    integer, intent(in) :: n        ! number of data points
-    real(dp), dimension(:), intent(in) :: t_in  ! time
-    real(dp), dimension(:), intent(in) :: x_in  ! time-series values
-    real(dp), intent(out) :: tau    ! result: persistence time tau
-    real(dp), intent(out) :: rhoout ! result: equivalent autocorrelation
-    ! coefficient
-    !
-    !       Estimates AR(1) persistence time (tau) and
-    !       equivalent autocorrelation coefficient (rho),using
-    !       the least-squares algorithm of Mudelsee (2002).
-    !
-    !       Notes: (1) assumes t = age (see Point 1)
-    !
-    !              (2) automatic bias correction (see Point 5)
-    !
-    real(dp), dimension(n) :: x      ! x renamed
-    real(dp), dimension(n) :: t      ! t renamed
-    real(dp) :: avex=-999.0_dp      ! average x
-    real(dp) :: varx=-999.0_dp      ! variance x
-    real(dp) :: delta=-999.0_dp      ! average spacing
-    real(dp) :: scalt=-999.0_dp      !  factor
-    real(dp) :: rho=-999.0_dp      ! rho x, used in scaling t
-    real(dp) :: rho_non=-999.0_dp      ! equivalent autocorrelation coefficient
-    real(dp) :: amin=-999.0_dp      ! output from minls. Estimated value of
-    ! a=exp(-scalt/tau)
-    integer :: mult=-999        ! flag (multiple solution) mult=0 if 1
-    ! solution,mult=1 if more than one minimum
-    integer :: i=-999
-    real(dp) :: rho_max = 0.99_dp
-    real(dp) :: rho_min = 0.01_dp
-    !
-    ! 1.    Rename and change time direction
-    !       ===============================
-    do i=n,1,-1
-      t(i)=-1.0_dp*t_in(n+1-i)
-      x(i)=+1.0_dp*x_in(n+1-i)
-    end do
-    !
-    ! 2.    Scaling (x)
-    !       ==========
-    call meanvar(x,avex,varx)
-    x=x/sqrt(varx)
-    !
-    ! 3.    Scaling (t)
-    !       ==========
-    !       => start value of a = 1/e
-    !
-    delta=abs(t(n)-t(1))/(n-1)    ! average sampling
-    call rhoest(n,x,rho)     ! rho estimated for x from eq 2.4 in Mudelsee(2010)
-    if (rho <= 0.0_dp) then
-      rho=0.05_dp
-    else if (rho >= 1.0_dp) then ! this rho setting equal to 0.05 or 0.95 is not
-      rho=0.95_dp        ! problematic since we require rho only for t-scaling
-    end if
-    scalt=-1.0_dp*log(rho)/delta    ! scaling factor
-    t=t*scalt        ! t-scaled: t*(-log(a)/delta)
-    !
-    ! 4.    Estimation (tau)
-    !       ===============
-    !ls - least square function
-    !minls - minimization of least-squares function ls
-    !brent - Brent's search - minimum ls value
-    !
-    call minls(n,t,x,amin,mult)
-    !
-    ! 5. Result ! checked if amin (the value for a) is equal or less than zero,
-    !    ====== ! or if it is equal or bigger than 1.0. That can cause
-    !           ! problems in the estimation
-    !
-    if (mult == 1 .or. amin <= 0.0_dp .or. amin >= 1.0_dp) then
-      if (amin <= 0.0_dp) then
-        rho_non=rho_min
-        tau=-delta/log(rho_min)
-      else if (amin >= 1.0_dp) then
-        rho_non=rho_max
-        tau=-delta/log(rho_max)
-      end if
-    else
-      tau = -1.0_dp/(scalt*log(amin))    ! tau - rescaled, without bias
-      ! correction tau=-1/log(a)
-      rho_non = exp(-delta/tau)      ! equivalent autocorrelation coefficient
-      ! for tau, used in the bias correction
-
-      ! Bias correction(unknown mean) for rho (Kendall, 1954) Solved equation
-      ! (this equation: a_est =a_est_bc+(1.0_dp + 3.0_dp * a_est_bc)/(n-1)
-      ! solved for estimated rho bias corrected = a_est_bc
-      rho_non = (rho_non * (n-1.0_dp) + 1.0_dp) / (n-4.0_dp)
-
-      !     print*,'rho_non',rho_non
-      !     print*,'delta', delta
-
-      if (rho_non >= 1.0_dp)then
-        rho_non = exp(-delta/tau)  ! If the bias corrected equivalent
-        ! autocorrelation coefficient becomes >1 then
-        ! the bias correction is not performed
-      end if          ! it can occur if n is small and the autocorrelation
-      ! coefficent is large.
-      !
-      !  print*,'bias corrected rho_non',rho_non
-
-      tau=-delta/log(rho_non)      ! tau-calculated from the bias corrected rho 
-      ! a=exp(delta/tau)  gives tau=-delta/log(rho)
-    end if
-
-    rhoout = rho_non
-    !
-  end subroutine tauest_x
   !
   !=============================================================================
   !

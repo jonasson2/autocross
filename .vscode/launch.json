@@ -2,12 +2,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Fortran Program",
-            "type": "lldb",
+            "name": "Debug pearsont3",
+            "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/pearsont3",
             "args": [],
+            "stopAtEntry": true,
+            "externalConsole": false,
             "cwd": "${workspaceFolder}",
+            "MIMode": "lldb",
             "preLaunchTask": "make_debug"
         }
     ]

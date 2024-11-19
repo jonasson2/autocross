@@ -81,7 +81,7 @@ program pear
   call init0      ! t1, x1, y1
   call read1      ! reads data
   n = size(t1)
-  call pearsont3sub(n, t1, x1, y1, 0.05d0, r, ci, taux3, tauy3)
+  call p3_subroutine(n, t1, x1, y1, 0.05d0, r, ci, taux3, tauy3)
   print *, 'after pearsont3sub'
   r_low = ci(1)
   r_upp = ci(2)

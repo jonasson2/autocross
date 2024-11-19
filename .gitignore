@@ -5,13 +5,15 @@ obj/
 run/
 modules/
 bin/
+build/
 .DS_Store
 *~
 a.out
 *.dat
 *.o
 pearsont3
-redfit-x
+redfitx
 Icon*
 *.so
 .vscode/
+.devcontainer/
