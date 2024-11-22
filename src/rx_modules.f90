@@ -8,7 +8,6 @@ module const
   character (len = 11) :: vers = 'REDFIT-X'
   real(dp), parameter :: pi = 3.141592653589793238462643383279502884197_dp
   real(dp), parameter :: tpi = 2 * pi
-  integer :: maxdimx, maxdimy    !the length of x and y
   integer :: nout                !nout = nfreq 
   integer,parameter :: n_fnin = 2  !number of input files, 1: timeseries x, 2: timeseries y 
   integer,parameter :: nspect = 4  !1.Autospectrum x
@@ -16,18 +15,6 @@ module const
   !3.Cross-spectrum xy
   !4.Coherency spectrum xy              
 end module const
-!
-! error handling
-! --------------
-module error
-  use precision
-  implicit none
-  public
-  integer :: ierr = 0              ! error flag; 1=error in gettau; 2=warning in gettau
-  integer, parameter :: errio = 99 ! i/o unit for log file
-  logical :: errflagx = .false.    ! flags existence of duplicate times in input
-  logical :: errflagy = .false.    ! flags existence of duplicate times in input
-end module error
 !
 ! time series data
 ! ----------------
@@ -112,51 +99,20 @@ module redfit_x_module
 
 contains
   !--------------------------------------------------------------------------
-  subroutine allocerr(ichar)
-    !--------------------------------------------------------------------------
-    ! Report errors during allocation or deallocation to errio and terminate
-    ! program.
-    !
-    ! ichar = a : Allocation Error
-    ! ichar = d : Deallocation Error
-    !--------------------------------------------------------------------------
-    use error
-    !
-    implicit none
-    !
-    character(len=1), intent(in)  :: ichar
-    !
-    if (ichar .eq. "a") then
-      write (errio, '(1x,a)') 'Error - Insufficient RAM; memory allocation failed!'
-      close(errio)
-      write(*,*) "An error has occurred. Check REDFIT-X.LOG for further information."
-      stop
-    end if
-    if (ichar .eq. "d") then
-      write (errio, '(1x,a)') 'Error - memory deallocation failed!'
-      close(errio)
-      write(*,*) "An error has occurred. Check REDFIT-X.LOG for further information."
-      stop
-    end if
-    !
-  end subroutine allocerr
-
-  !--------------------------------------------------------------------------
-  subroutine setdim(fnin,maxdimx,maxdimy,nout)  
+  subroutine setdim(fnin, nout)  
     !--------------------------------------------------------------------------
     ! Analyze data file and set array dimensions.
     !--------------------------------------------------------------------------
 
     use timeser
     use param
-    use error
     use nyquist
     use const, only : n_fnin, pi
     !
     implicit none
     !
     character (len = 80), dimension (n_fnin), intent(in) :: fnin 
-    integer, intent(out) :: maxdimx,maxdimy,nout
+    integer, intent(out) :: nout
     !
     real(dp) :: tdum, xdum, t1  
     real(dp) :: avgdtx, avgdty    !average sampling interval for x and y
@@ -171,13 +127,7 @@ contains
       !
       !   open input file
       !   ---------------
-      open (10, file = fnin(j), form = 'formatted', status = 'old', &
-        iostat = iocheck)
-      if (iocheck .ne. 0 ) then
-        write (errio, *) ' Error - Can''t open ', trim(fnin(j))
-        close(errio)
-        stop
-      end if
+      open (10, file = fnin(j), form = 'formatted', status = 'old')
       !
       !    skip header
       !    -----------
@@ -218,11 +168,6 @@ contains
       !
     end do   !(end of j - loop)  
     !
-    ! set max. array dimension
-    ! ------------------------
-    maxdimx = npx
-    maxdimy = npy   
-    !
     ! number of output data (results saved in the module nyquist)
     ! ----------------------------------------------------------
     nsegx = int(2 * npx / (n50 + 1))             ! points per segment x
@@ -262,7 +207,6 @@ contains
   subroutine readdat(fnin)
     !--------------------------------------------------------------------------
     use timeser
-    use error
     use const,only:n_fnin
     !
     implicit none
@@ -275,13 +219,7 @@ contains
       !
       !    open input file
       !    ---------------
-      open (10, file = fnin(j), form = 'formatted', status = 'old', &
-        iostat = iocheck)
-      if (iocheck .ne. 0 ) then
-        write (errio, *) ' Error - Can''t open ', trim(fnin(j))
-        close(errio)
-        stop
-      end if
+      open (10, file = fnin(j), form = 'formatted', status = 'old')
       !
       !    skip header
       !    -----------
@@ -310,144 +248,6 @@ contains
     end do
     !
   end subroutine readdat
-
-  !--------------------------------------------------------------------------
-  subroutine check1()
-    !--------------------------------------------------------------------------
-    use timeser
-    use error
-    implicit none
-    !
-    real(dp)    :: ave
-    integer :: i, j, idx, icnt
-    logical :: err_order = .false.
-    logical :: err_dupl = .false.
-    !
-    ! check for descending time axis
-    ! ------------------------------
-    do i = 1, npx-1
-      if (tx(i) .gt. tx(i+1)) then
-        err_order = .true.
-        write(errio,'(1x,a,1x,e12.6)') 'Descending time axis at t =', tx(i)
-      end if
-    end do
-    if (err_order .eqv. .true.) stop
-    !
-    ! check for duplicates time and replace values of time-dependent variable by their mean
-    ! -------------------------------------------------------------------------------------
-    idx = 1
-    do while (.true.)
-      if (tx(idx+1) .eq. tx(idx)) then
-        err_dupl = .true.
-        write(errio,'(1x,a,1x,e12.6,1x,a)') 'Duplicate time at t =', tx(idx), '...averaging data'
-        !
-        !       search for multiple occurrences
-        !       -------------------------------
-        icnt = 0
-        do i = 1, npx-idx
-          if (tx(idx+i) .eq. tx(idx)) icnt = icnt + 1
-        end do
-        !
-        !       replace first data by mean of duplicates points
-        !       -----------------------------------------------
-        ave = sum(x(idx:idx+icnt)) / real(icnt+1, dp)
-        x(idx) = ave
-        !
-        !       shift remaining points
-        !       ----------------------
-        do j = 1, icnt
-          do i = idx+1, npx-1
-            tx(i) = tx(i+1)
-            x(i) = x(i+1)
-          end do
-          npx  = npx - 1
-        end do
-      end if
-      idx = idx + 1
-      if (idx .eq. npx-1) exit
-    end do
-    !
-    ! save averaged data set
-    ! ----------------------
-    if (err_dupl .eqv. .true.) then
-      errflagx = .true.
-      open(90, file = "TimeSeriesx.avg")
-      do i = 1, npx
-        write(90,*) tx(i), x(i)
-      end do
-      close(90)
-    end if
-    !
-  end subroutine check1
-
-  !--------------------------------------------------------------------------
-  subroutine check2()
-    !--------------------------------------------------------------------------
-    use timeser
-    use error
-    implicit none
-    !
-    real(dp)    :: ave
-    integer :: i, j, idx, icnt
-    logical :: err_order = .false.
-    logical :: err_dupl = .false.
-    !
-    ! check for descending time axis
-    ! ------------------------------
-    do i = 1, npy-1
-      if (ty(i) .gt. ty(i+1)) then
-        err_order = .true.
-        write(errio,'(1x,a,1x,e12.6)') 'Descending time axis at ty =', ty(i)
-      end if
-    end do
-    if (err_order .eqv. .true.) stop
-    !
-    ! check for duplicates time and replace values of time-dependent variable by their mean
-    ! -------------------------------------------------------------------------------------
-    idx = 1
-    do while (.true.)
-      if (ty(idx+1) .eq. ty(idx)) then
-        err_dupl = .true.
-        write(errio,'(1x,a,1x,e12.6,1x,a)') 'Duplicate time at ty =', ty(idx), '...averaging data'
-        !
-        !       search for multiple occurrences
-        !       -------------------------------
-        icnt = 0
-        do i = 1, npy-idx
-          if (ty(idx+i) .eq. ty(idx)) icnt = icnt + 1
-        end do
-        !
-        !       replace first data by mean of duplicates points
-        !       -----------------------------------------------
-        ave = sum(y(idx:idx+icnt)) / real(icnt+1, dp)
-        y(idx) = ave
-        !
-        !       shift remaining points
-        !       ----------------------
-        do j = 1, icnt
-          do i = idx+1, npy-1
-            ty(i) = ty(i+1)
-            y(i) = y(i+1)
-          end do
-          npy  = npy - 1
-        end do
-      end if
-      idx = idx + 1
-      if (idx .eq. npy-1) exit
-    end do
-    !
-    ! save averaged data set
-    ! ----------------------
-    if (err_dupl .eqv. .true.) then
-      errflagy = .true.
-      open(90, file = "TimeSeriesy.avg")
-      do i = 1, npy
-        write(90,*) ty(i), y(i)
-      end do
-      close(90)
-    end if
-    !
-  end subroutine check2
 
   !--------------------------------------------------------------------------
   subroutine spectr(ini, tx, x, ty, y, ofac, n50, iwin, frq, gxx, &
@@ -1060,7 +860,6 @@ contains
   !----------------------------------------------------------------------
   real(dp) function getchi2(dof, alpha)
     !----------------------------------------------------------------------
-    use error
     use asa239
     implicit none
     !
@@ -1074,7 +873,6 @@ contains
     ! ----------------------------------------------------------
     if (dof .gt. 30) then
       za = -getz(alpha)   ! NB: Eq. requires change of sign for percentile
-      if (ierr .eq. 1) return
       x = 2.0_dp / 9.0_dp / dof
       chi2 = dof * (1 - x + za * sqrt(x))**3
     else
@@ -1089,9 +887,7 @@ contains
       do
         iter= iter + 1
         if (iter .gt. itmax) then
-          write(errio,'(a)') "Error in GETCHI2: Iter > ItMax"
-          ierr = 1
-          return
+          stop "Error in GETCHI2: Iter > ItMax"
         end if
         chi2 = 0.5_dp * (lm + rm)
         ac = 1 - gammad(0.5_dp*chi2, 0.5_dp*dof, ifault)
@@ -1117,7 +913,6 @@ contains
     ! For a given values of alpha (a), the program returns z(a) such that
     ! P[Z <= z(a)] = a. Check values are in the front cover of Neter et al.
     !----------------------------------------------------------------------
-    use error
     implicit none
     !
     real(dp), parameter :: tol = 1e-5_dp
@@ -1135,7 +930,7 @@ contains
       do while(.true.)
         iter= iter + 1
         if (iter .gt. itmax) then
-          write(errio,'(a)') "Error in GETZ: Iter > ItMax"
+          print *, "Error in GETZ: Iter > ItMax"
           return
         end if
         zm = (zl + zr) / 2
@@ -1174,7 +969,6 @@ contains
     !----------------------------------------------------------------------
     use const
     use param, only : n50
-    use error
     use minls_module
     implicit none
     real(dp), intent(in) :: rhopre
@@ -1233,9 +1027,8 @@ contains
       !     make sure that tau is non-negative
       !     ----------------------------------
       if (tau .lt. 0) then
-        ierr = 2
-        write (errio,*) 'Warning: GETTAU returned tau =', tau
-        write (errio,*) '         Negative tau is forced to zero.'
+        print *, 'Warning: GETTAU returned tau =', tau
+        print *, '         Negative tau is forced to zero.'
         tau = 0
       end if
       !
@@ -1267,7 +1060,6 @@ contains
   !----------------------------------------------------------------------
   ! subroutine tauest    !
   !   use const
-  !   use error
   !   use meanvar_module
   !   !
   !   implicit none
@@ -1362,7 +1154,6 @@ contains
   !----------------------------------------------------------------------
   ! subroutine minls(n, t, x, amin, nmu_)
   !   !
-  !   use error
   !   use newbrent_module
   !   !
   !   implicit none

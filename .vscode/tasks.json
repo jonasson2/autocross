@@ -2,15 +2,69 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "make_debug",
+            "label": "CMake Configure",
             "type": "shell",
-            "command": "make",
-            "args": ["DEBUG=1"],
+            "command": "cmake",
+            "args": [
+                "-S",
+                "${workspaceFolder}",
+                "-B",
+                "${workspaceFolder}/build"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Debug",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build",
+                "--config",
+                "Debug",
+                "--parallel"
+            ],
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
-            "problemMatcher": ["$gcc"]
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Release",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build",
+                "--config",
+                "Release",
+                "--parallel"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Clean Build",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build",
+                "--target",
+                "clean"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "problemMatcher": []
         }
     ]
 }

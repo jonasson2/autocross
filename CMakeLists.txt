@@ -6,10 +6,19 @@ set(CMAKE_Fortran_COMPILER gfortran)
 # Project name and Fortran as the language
 project(FortranPrograms Fortran)
 
+# Determine the shared flag based on platform
+if(WIN32)
+    set(SHARED_FLAG "-D_WINDOWS")
+elseif(NOT APPLE)
+    set(SHARED_FLAG "-fPIC")
+else()
+    set(SHARED_FLAG "")  # No shared flag needed for macOS
+endif()
+
 # Compiler flags for gfortran
-set(CMAKE_Fortran_FLAGS "-O2 -g")
-set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -g")
-set(CMAKE_Fortran_FLAGS_RELEASE "-O2")
+set(CMAKE_Fortran_FLAGS "-O2 -g ${SHARED_FLAG}")
+set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -g ${SHARED_FLAG}")
+set(CMAKE_Fortran_FLAGS_RELEASE "-O2 ${SHARED_FLAG}")
 set(CMAKE_Fortran_EXTENSIONS OFF)
 
 # Set output directories
@@ -45,12 +54,21 @@ set_target_properties(pearsont3 PROPERTIES
     SUFFIX "${EXE_SUFFIX}"
 )
 
-# Create the redfitx executable
-add_executable(redfitx ${REDFITX_MAIN} ${REDFITX_SOURCES})
-set_target_properties(redfitx PROPERTIES
-    OUTPUT_NAME redfitx
-    SUFFIX "${EXE_SUFFIX}"
-)
+# # Create the redfitx executable
+# add_executable(redfitx ${REDFITX_MAIN} ${REDFITX_SOURCES})
+# set_target_properties(redfitx PROPERTIES
+#   OUTPUT_NAME redfitx
+#   SUFFIX "${EXE_SUFFIX}"
+# )
+
+# # Create the redfitx dynamic library
+# add_library(redfitx_shared SHARED ${REDFITX_SOURCES})
+# set_target_properties(redfitx_shared PROPERTIES
+#   OUTPUT_NAME redfitx
+#   SUFFIX "${SHARED_SUFFIX}"
+# )
+
+# target_link_libraries(redfitx PRIVATE redfitx_shared)
 
 # Create the pearsont3 dynamic library
 add_library(pearsont3_shared SHARED ${PEARSONT3_SOURCES})
@@ -59,19 +77,5 @@ set_target_properties(pearsont3_shared PROPERTIES
     SUFFIX "${SHARED_SUFFIX}"
 )
 
-# Create the redfitx dynamic library
-add_library(redfitx_shared SHARED ${REDFITX_SOURCES})
-set_target_properties(redfitx_shared PROPERTIES
-    OUTPUT_NAME redfitx
-    SUFFIX "${SHARED_SUFFIX}"
-)
-
-# Compiler flags for optimization or debugging
-target_compile_options(pearsont3 PRIVATE -O2 -g)
-target_compile_options(redfitx PRIVATE -O2 -g)
-target_compile_options(pearsont3_shared PRIVATE -O2 -g)
-target_compile_options(redfitx_shared PRIVATE -O2 -g)
-
 # Ensure all executables and libraries are linked with the Fortran runtime
-target_link_libraries(pearsont3 PRIVATE pearsont3_shared)
-target_link_libraries(redfitx PRIVATE redfitx_shared)
+target_link_libraries(pearsont3 pearsont3_shared)

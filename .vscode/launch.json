@@ -1,17 +1,35 @@
 {
-    "version": "0.2.0",
-    "configurations": [
+    "version": "2.0.0",
+    "tasks": [
         {
-            "name": "Debug pearsont3",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/pearsont3",
-            "args": [],
-            "stopAtEntry": true,
-            "externalConsole": false,
-            "cwd": "${workspaceFolder}",
-            "MIMode": "lldb",
-            "preLaunchTask": "make_debug"
+            "label": "Build Debug",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build", "${workspaceFolder}/build",
+                "--config", "Debug",
+                "--parallel"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Build Release",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build", "${workspaceFolder}/build",
+                "--config", "Release",
+                "--parallel"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "problemMatcher": ["$gcc"]
         }
     ]
 }

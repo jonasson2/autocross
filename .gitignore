@@ -16,5 +16,6 @@ redfitx
 Icon*
 Icon?
 *.so
+*.dSYM
 .vscode/
 .devcontainer/

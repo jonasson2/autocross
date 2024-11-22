@@ -178,10 +178,10 @@ include 'c:\nr\nr\nrutil.f90'
   module nyquist
      implicit none
      public
-     integer :: nsegx, nsegy		! data points per segment x and y
-     real :: dfxy					! max frequency spacing, max(dfx,dfy)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+     integer :: nsegx, nsegy		        ! data points per segment x and y
+     real :: dfxy			        ! max frequency spacing, max(dfx,dfy)
      real :: avgdtxy				! max average sampling interval, max(avgdtx,avgdty)
-     real :: fnyq					! average Nyquist frequency
+     real :: fnyq			        ! average Nyquist frequency
      real :: wz					! omega = 2*pi*f
      integer :: nfreq				!f(1) = f(0) ; f(nfreq) = fNyq  (number of frequencies
      integer :: lfreq				!nfreq * 2
@@ -271,7 +271,7 @@ include 'c:\nr\nr\nrutil.f90'
 !
   namelist /cfg/ fnin, fnout, nsim, ofac, hifac, n50, iwin, mctest, alpha, rhopre,mctest_phi, x_sign, y_sign
 !
-  interface
+s  interface
      subroutine sort(arr)
      use nrtype
      implicit none
