@@ -1,9 +1,10 @@
 ! Subroutine interface to RedfitX. See comments in redfitx.f90
 
 subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
-  &  cfg_nsim, cfg_ofac, cfg_hifac, cfg_n50, cfg_alpha, cfg_i, &
-  &  rhox, rhoy, taux, tauy, df, dB6, false_alarm, &
-  &  scale, data_x, data_y, data_xy, data_cxy, data_phxy)
+  &  cfg_nsim, cfg_ofac, cfg_hifac, cfg_n50, cfg_alpha, cfg_iwin, &
+  &  rhox, rhoy, taux, tauy, dof, dB6, false_alarm, &
+  &  faccritx, faccrity, alphacritx, alphacrity, &
+  &  data_x, data_y, data_xy, data_cxy, data_phxy)
   use precision
   use const
   use param
@@ -21,7 +22,7 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
   real(dp), intent(in) :: tx(nx), x(nx), ty(ny), y(ny)
   real(dp), intent(in) :: cfg_ofac, cfg_hifac, cfg_alpha
   real(dp), intent(out) :: rhox, rhoy, taux, tauy, dof, &
-    dB6, false_alarm
+    dB6, false_alarm, faccritx, faccrity, alphacritx, alphacrity
   real(dp), intent(out) :: data_x(nout, 12), data_y(nout, 12), &
     data_xy(nout, 2), data_cxy(nout, 7), data_phxy(nout, 6)
 
@@ -60,7 +61,7 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
   !                                          ! series y  
   real(dp) :: rnsim, fac90, fac95, fac99, neff, &
     avgdtx, avgdty, facx, facy, facxy, rhoxsq, rhoysq, varx, vary, &
-    varrx, varry, alphacritx, alphacrity, faccritx, faccrity,varxy, &
+    varrx, varry, varxy, &
     varrxy, cobias, facphi, z, csig, se_dummy
   integer:: kstart, kstop, krate, kmax, ntime
   integer :: i, iocheck, ialloc
@@ -68,11 +69,6 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
   logical :: ini, biascorr
   !
   call system_clock(kstart, krate, kmax)
-  !
-  ! First try to direct error messages to stderr
-  ! --------------------------------------------
-  errorfile = '/dev/stderr'
-  open(errio, file=errorfile, status='old', iostat=iostat, action='write')
   !
   ! call check1()  Tékka hvort röðin er vaxandi eða minnkandi
   !                (hún á að vera vaxandi) (x og y sér)
@@ -514,89 +510,87 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
     se_mc_phxy(2,i) = (se_phbxy(2,i,1) + se_phbxy(2,i,2))/2 !not printed in
     !result file
   end do
-End if
-!  
-nsegx = int(2 * nx / (n50 + 1)) ! nsegx and nsegy set to previous values
-nsegy= int(2 * ny / (n50 + 1))                 
-!
-! critical false alarm level after Thomson (1990)
-! -----------------------------------------------
-! For autospectrum xx
-alphacritx = 1 / real(nsegx,dp)
-faccritx = getchi2(dof, alphacritx) / dof
-! 
-! For autospectrum yy
-alphacrity = 1 / real(nsegy,dp)
-faccrity = getchi2(dof, alphacrity) / dof
-!
-! save results of AR(1) fit
-! -------------------------
-call system_clock(kstop, krate, kmax)
-if (kstop .ge. kstart) then
-  ntime = (kstop-kstart) / krate
-else ! kmax overflow
-  ntime = ((kmax-kstart)+kstop) / krate
-end if
+  
+  
+  nsegx = int(2 * nx / (n50 + 1)) ! nsegx and nsegy set to previous values
+  nsegy= int(2 * ny / (n50 + 1))                 
+  !
+  ! critical false alarm level after Thomson (1990)
+  ! -----------------------------------------------
+  ! For autospectrum xx
+  alphacritx = 1 / real(nsegx,dp)
+  faccritx = getchi2(dof, alphacritx) / dof
+  ! 
+  ! For autospectrum yy
+  alphacrity = 1 / real(nsegy,dp)
+  faccrity = getchi2(dof, alphacrity) / dof
+  !
+  ! save results of AR(1) fit
+  ! -------------------------
+  call system_clock(kstop, krate, kmax)
+  if (kstop .ge. kstart) then
+    ntime = (kstop-kstart) / krate
+  else ! kmax overflow
+    ntime = ((kmax-kstart)+kstop) / krate
+  end if
 
-! Write result file - Autospectrum X
-! ----------------------------------------
-dB6 = winbw(iwin, freq(2)-freq(1), ofac)  ! 6-dB Bandwidth
-false_alarm = (1-alphacritx) * 100 ! Critical false-alarm level
-!                                      ! (Thomson 1990)
-data_x(:, 1) = freq
-data_x(:, 2) = gxx
-data_x(:, 3) = gxxc
-data_x(:, 4) = gredthx
-data_x(:, 5) = grxxavg
-data_x(:, 6) = corrx
-data_x(:, 7) = gredthx*fac90
-data_x(:, 8) = gredthx*fac95
-data_x(:, 9) = gredthx*fac99
-data_x(:, 10) = ci90
-data_x(:, 11) = ci95
-data_x(:, 12) = ci99
+  dB6 = winbw(iwin, freq(2)-freq(1), ofac)  ! 6-dB Bandwidth
+  false_alarm = (1-alphacritx) * 100 ! Critical false-alarm level
+  !                                      ! (Thomson 1990)
+  data_x(:, 1) = freq
+  data_x(:, 2) = gxx
+  data_x(:, 3) = gxxc
+  data_x(:, 4) = gredthx
+  data_x(:, 5) = grxxavg
+  data_x(:, 6) = corrx
+  data_x(:, 7) = gredthx*fac90
+  data_x(:, 8) = gredthx*fac95
+  data_x(:, 9) = gredthx*fac99
+  data_x(:, 10) = ci90
+  data_x(:, 11) = ci95
+  data_x(:, 12) = ci99
 
-data_y(:, 1) = freq
-data_y(:, 2) = gyy
-data_y(:, 3) = gyyc
-data_y(:, 4) = gredthy
-data_y(:, 5) = gryyavg
-data_y(:, 6) = corry
-data_y(:, 7) = gredthy*fac90
-data_y(:, 8) = gredthy*fac95
-data_y(:, 9) = gredthy*fac99
-data_y(:, 10) = ci90
-data_y(:, 11) = ci95
-data_y(:, 12) = ci99
+  data_y(:, 1) = freq
+  data_y(:, 2) = gyy
+  data_y(:, 3) = gyyc
+  data_y(:, 4) = gredthy
+  data_y(:, 5) = gryyavg
+  data_y(:, 6) = corry
+  data_y(:, 7) = gredthy*fac90
+  data_y(:, 8) = gredthy*fac95
+  data_y(:, 9) = gredthy*fac99
+  data_y(:, 10) = ci90
+  data_y(:, 11) = ci95
+  data_y(:, 12) = ci99
 
-data_xy(:, 1) = freq
-data_xy(:, 2) = gxy
+  data_xy(:, 1) = freq
+  data_xy(:, 2) = gxy
 
-data_cxy(:, 1) = freq
-data_cxy(:, 2) = cxy
-data_cxy(:, 3) = csig
-data_cxy(:, 4) = csig_mc
-data_cxy(:, 5) = ci90
-data_cxy(:, 6) = ci95
-data_cxy(:, 7) = ci99
+  data_cxy(:, 1) = freq
+  data_cxy(:, 2) = cxy
+  data_cxy(:, 3) = csig
+  data_cxy(:, 4) = csig_mc
+  data_cxy(:, 5) = ci90
+  data_cxy(:, 6) = ci95
+  data_cxy(:, 7) = ci99
 
-data_phxy(:, 1) = freq
-data_phxy(:, 2) = phxy
-data_phxy(:, 3) = ephi(1, :)
-data_phxy(:, 4) = ephi(2, :)
-data_phxy(:, 5) = ephi_mc(1, :)
-data_phxy(:, 6) = ephi_mc(2, :)
+  data_phxy(:, 1) = freq
+  data_phxy(:, 2) = phxy
+  data_phxy(:, 3) = ephi(1, :)
+  data_phxy(:, 4) = ephi(2, :)
+  data_phxy(:, 5) = ephi_mc(1, :)
+  data_phxy(:, 6) = ephi_mc(2, :)
 
-! clean up
-! --------
-deallocate(redx, redy, stat = ialloc)
-deallocate (freq, gxx, gyy, gxy, cxy, phxy)
-deallocate(grxx, gryy, grxy, crxy, phrxy)
-deallocate(grxxsum, gryysum, grxysum,      &
-  grxxavg, gryyavg, grxyavg)
-deallocate (gredthx, gredthy, corrx , corry,    &
-  gxxc, gyyc)
-deallocate (ci90, ci95, ci99)
-deallocate (gbxx,gbyy,gbxy,cbxy,phbxy,ephi_b,se_phbxy, ephi_mc, &
-  se_mc_phxy)
-end program
+  ! clean up
+  ! --------
+  deallocate(redx, redy, stat = ialloc)
+  deallocate (freq, gxx, gyy, gxy, cxy, phxy)
+  deallocate(grxx, gryy, grxy, crxy, phrxy)
+  deallocate(grxxsum, gryysum, grxysum,      &
+    grxxavg, gryyavg, grxyavg)
+  deallocate (gredthx, gredthy, corrx , corry,    &
+    gxxc, gyyc)
+  deallocate (ci90, ci95, ci99)
+  deallocate (gbxx,gbyy,gbxy,cbxy,phbxy,ephi_b,se_phbxy, ephi_mc, &
+    se_mc_phxy)
+end subroutine rx_subroutine
