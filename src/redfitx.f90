@@ -88,10 +88,6 @@
 !                        coherency spectrum with Monte Carlo simulations
 !    mctest_phi= T,      [T/F] Estimate Monte Carlo confidence interval for
 !                        the phase spectrum
-!    rhopre(1) = -999.0, Prescribed value for rho for the first time series,
-!                        not used if rho < 0 (default = -999.0)
-!    rhopre(2) = -999.0, Prescribed value for rho for the second time series,
-!                        not used if rho < 0 (default = -999.0)
 !    ofac =      4.0,    Oversampling value for Lomb-Scargle Fourier
 !                        transform (typical values: 2.0-4.0)
 !    hifac =     1.0,    Max. freq. = HIFAC * <f_Nyq> (Default = 1.0)
@@ -166,10 +162,13 @@ program redfitx
   if (iocheck .ne. 0 ) stop 'cannot open config file'
   read(10, nml = cfg)
   close (10)
-  namelist /cfg/ fnin, fnout, nsim, ofac, hifac, n50, iwin, alpha, rhopre
+  namelist /cfg/ fnin, fnout, nsim, ofac, hifac, n50, iwin, alpha
   ! mctest, mctest_phi x_sign and y_sign have been removed
 
-  call setdim(fnin, nout)
+  call setdim(fnin)
+  nx = npx
+  ny = npy
+  nout = nfreq
 !
 ! setup workspace for input data
 ! ------------------------------
@@ -180,7 +179,7 @@ program redfitx
 ! -------------------------
   call readdat(fnin)
 
-  call rx_subroutine(npx, npy, nout, tx, ty, x, y, cfg_nsim, cfg_rhopre,&
+  call rx_subroutine(nx, ny, nout, tx, ty, x, y, cfg_nsim, &
     & cfg_ofac, cfg_hifac, cfg_n50, cfg_alpha, cfg_i, rhox, rhoy, taux, tauy,&
     & df, 6dB, false_alarm, scale, data_x, data_y, data_xy, data_cxy,&
     & out_data_phxy

@@ -1,12 +1,11 @@
 ! Subroutine interface to RedfitX. See comments in redfitx.f90
 
-subroutine rx_subroutine(npx, npy, nout, tx, ty, x, y, &
-  &  cfg_nsim, cfg_rhopre, cfg_ofac, cfg_hifac, cfg_n50, cfg_alpha, cfg_i, &
+subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
+  &  cfg_nsim, cfg_ofac, cfg_hifac, cfg_n50, cfg_alpha, cfg_i, &
   &  rhox, rhoy, taux, tauy, df, dB6, false_alarm, &
   &  scale, data_x, data_y, data_xy, data_cxy, data_phxy)
   use precision
   use const
-  use timeser
   use param
   use trigwindat
   use nyquist
@@ -17,15 +16,15 @@ subroutine rx_subroutine(npx, npy, nout, tx, ty, x, y, &
   use redfit_x_module
 
   implicit none
-  
-  integer, intent(in) :: npx, npy, nsim, n50, iwin
-  real(dp), intent(in) :: tx(npx), x(npx), ty(npy), y(npy)
-  real(dp), intent(in) :: rhopre(2), ofac, hifac, alpha
+
+  integer, intent(in) :: nx, ny, nout, cfg_nsim, cfg_n50, cfg_iwin
+  real(dp), intent(in) :: tx(nx), x(nx), ty(ny), y(ny)
+  real(dp), intent(in) :: cfg_ofac, cfg_hifac, cfg_alpha
   real(dp), intent(out) :: rhox, rhoy, taux, tauy, dof, &
-    dB6, false_alarm, faccritx
+    dB6, false_alarm
   real(dp), intent(out) :: data_x(nout, 12), data_y(nout, 12), &
     data_xy(nout, 2), data_cxy(nout, 7), data_phxy(nout, 6)
- 
+
   real(dp), dimension(:), allocatable :: &
     freq, &      ! frequency vector
     gxx, &       ! autospectrum of input data x
@@ -74,17 +73,23 @@ subroutine rx_subroutine(npx, npy, nout, tx, ty, x, y, &
   ! --------------------------------------------
   errorfile = '/dev/stderr'
   open(errio, file=errorfile, status='old', iostat=iostat, action='write')
-
+  !
   ! call check1()  Tékka hvort röðin er vaxandi eða minnkandi
   !                (hún á að vera vaxandi) (x og y sér)
   ! 
   ! in case of duplicate entries reinitialize array dimensions
   ! and retrieve averaged time series
   ! ----------------------------------------------------------
-
+  nsim = cfg_nsim
+  n50 = cfg_n50
+  iwin = cfg_iwin
+  ofac = cfg_ofac
+  hifac = cfg_hifac
+  alpha = cfg_alpha
+  !
   ! allocate remaining workspace
   ! ----------------------------
-  allocate(redx(npx), redy(npy), stat = ialloc)
+  allocate(redx(nx), redy(ny), stat = ialloc)
   if (ialloc .ne. 0) call allocerr("a")
   !
   allocate (freq(nout), gxx(nout), gyy(nout), gxy(nout), &
@@ -108,15 +113,15 @@ subroutine rx_subroutine(npx, npy, nout, tx, ty, x, y, &
   !
   ! average dt of entire time series
   ! --------------------------------
-  avgdtx = sum(tx(2:npx)-tx(1:npx-1)) / real(npx-1,dp)
-  avgdty = sum(ty(2:npy)-ty(1:npy-1)) / real(npy-1,dp)
+  avgdtx = sum(tx(2:nx)-tx(1:nx-1)) / real(nx-1,dp)
+  avgdty = sum(ty(2:ny)-ty(1:ny-1)) / real(ny-1,dp)
   !
   ! determine autospectrum,crossspectrum, coherency and phase spectrum of
   ! input data !step 2
   ! ------------------------------------
   ini = .true.
   !
-  call spectr(ini, tx(1:npx), x(1:npx), ty(1:npy), y(1:npy), ofac, n50, &
+  call spectr(ini, tx(1:nx), x(1:nx), ty(1:ny), y(1:ny), ofac, n50, &
     iwin, freq, gxx, gyy, gxy, cxy, phxy)
   !
   ! estimate data variance from autospectrum
@@ -127,8 +132,8 @@ subroutine rx_subroutine(npx, npy, nout, tx, ty, x, y, &
   !
   ! estimate tau unless tau is prescribed; die gracefully in case of an error
   ! -------------------------------------------------------------------------
-  call gettau(rhopre(1), tx(1:npx), x(1:npx), npx, taux)
-  call gettau(rhopre(2), ty(1:npy), y(1:npy), npy, tauy)
+  call gettau(tx(1:nx), x(1:nx), nx, taux)
+  call gettau(ty(1:ny), y(1:ny), ny, tauy)
   !
   ! Generate NSim AR(1) Spectra
   ! ---------------------------------
@@ -155,11 +160,11 @@ subroutine rx_subroutine(npx, npy, nout, tx, ty, x, y, &
     !   setup AR(1) time series and estimate its spectrum
     !   -------------------------------------------------
     !
-    call makear1(tx, npx, taux, redx)
-    call makear1(ty, npy, tauy, redy)   
+    call makear1(tx, nx, taux, redx)
+    call makear1(ty, ny, tauy, redy)   
     !    
     ini = .false.
-    call spectr(ini, tx(1:npx), redx(1:npx), ty(1:npy), redy(1:npy),    &
+    call spectr(ini, tx(1:nx), redx(1:nx), ty(1:ny), redy(1:ny),    &
       ofac, n50, iwin, freq, grxx(i,:), gryy(i,:),         &
       grxy(i,:), crxy(i,:), phrxy(i,:))
     !
@@ -407,9 +412,9 @@ subroutine rx_subroutine(npx, npy, nout, tx, ty, x, y, &
     !steps from time series y used
     !
     If(sg==1)then
-      np_xy = npx
+      np_xy = nx
     else if (sg==2)then
-      np_xy = npy
+      np_xy = ny
     end if
     !
     allocate(t_xy(np_xy),stat = ialloc)
@@ -485,107 +490,113 @@ subroutine rx_subroutine(npx, npy, nout, tx, ty, x, y, &
         !to form the
         !confidence interval
         ephi_b(2,i,sg) = phxy(i) + phbxy(idxph_up, i)
-      end do
-      !  
-      deallocate (t_xy, redyb, redxb,  stat = ialloc)
-      if (ialloc .ne. 0) call allocerr("d")
-      !   
+      else if (cxy(i).lt. csig_mc) then		
+        ephi_b(1,i,sg) = -999.0
+        ephi_b(2,i,sg) = -999.0
+        se_phbxy(1,i,sg) = -999.0
+        se_phbxy(2,i,sg) = -999.0
+      end if
     end do
-    !
-    ! Form the final Monte Carlo confidence interval by taking the mean value
-    ! for both time scalces
     !  
-    do i = 1,nout
-      ephi_mc(1,i)=  (ephi_b(1,i,1)+ephi_b(1,i,2))/2
-      ephi_mc(2,i)=  (ephi_b(2,i,1) + ephi_b(2,i,2))/2
-      se_mc_phxy(1,i) = (se_phbxy(1,i,1) + se_phbxy(1,i,2))/2 !not printed in
-      !result file
-      se_mc_phxy(2,i) = (se_phbxy(2,i,1) + se_phbxy(2,i,2))/2 !not printed in
-      !result file
-    end do
-  End if
+    deallocate (t_xy, redyb, redxb,  stat = ialloc)
+    if (ialloc .ne. 0) call allocerr("d")
+    !   
+  end do
+  !
+  ! Form the final Monte Carlo confidence interval by taking the mean value
+  ! for both time scalces
   !  
-  nsegx = int(2 * npx / (n50 + 1)) ! nsegx and nsegy set to previous values
-  nsegy= int(2 * npy / (n50 + 1))                 
-  !
-  ! critical false alarm level after Thomson (1990)
-  ! -----------------------------------------------
-  ! For autospectrum xx
-  alphacritx = 1 / real(nsegx,dp)
-  faccritx = getchi2(dof, alphacritx) / dof
-  ! 
-  ! For autospectrum yy
-  alphacrity = 1 / real(nsegy,dp)
-  faccrity = getchi2(dof, alphacrity) / dof
-  !
-  ! save results of AR(1) fit
-  ! -------------------------
-  call system_clock(kstop, krate, kmax)
-  if (kstop .ge. kstart) then
-    ntime = (kstop-kstart) / krate
-  else ! kmax overflow
-    ntime = ((kmax-kstart)+kstop) / krate
-  end if
+  do i = 1,nout
+    ephi_mc(1,i)=  (ephi_b(1,i,1)+ephi_b(1,i,2))/2
+    ephi_mc(2,i)=  (ephi_b(2,i,1) + ephi_b(2,i,2))/2
+    se_mc_phxy(1,i) = (se_phbxy(1,i,1) + se_phbxy(1,i,2))/2 !not printed in
+    !result file
+    se_mc_phxy(2,i) = (se_phbxy(2,i,1) + se_phbxy(2,i,2))/2 !not printed in
+    !result file
+  end do
+End if
+!  
+nsegx = int(2 * nx / (n50 + 1)) ! nsegx and nsegy set to previous values
+nsegy= int(2 * ny / (n50 + 1))                 
+!
+! critical false alarm level after Thomson (1990)
+! -----------------------------------------------
+! For autospectrum xx
+alphacritx = 1 / real(nsegx,dp)
+faccritx = getchi2(dof, alphacritx) / dof
+! 
+! For autospectrum yy
+alphacrity = 1 / real(nsegy,dp)
+faccrity = getchi2(dof, alphacrity) / dof
+!
+! save results of AR(1) fit
+! -------------------------
+call system_clock(kstop, krate, kmax)
+if (kstop .ge. kstart) then
+  ntime = (kstop-kstart) / krate
+else ! kmax overflow
+  ntime = ((kmax-kstart)+kstop) / krate
+end if
 
-  ! Write result file - Autospectrum X
-  ! ----------------------------------------
-  dB6 = winbw(iwin, freq(2)-freq(1), ofac)  ! 6-dB Bandwidth
-  false_alarm = (1-alphacritx) * 100 ! Critical false-alarm level
-  !                                      ! (Thomson 1990)
-  data_x(:, 1) = freq
-  data_x(:, 2) = gxx
-  data_x(:, 3) = gxxc
-  data_x(:, 4) = gredthx
-  data_x(:, 5) = grxxavg
-  data_x(:, 6) = corrx
-  data_x(:, 7) = gredthx*fac90
-  data_x(:, 8) = gredthx*fac95
-  data_x(:, 9) = gredthx*fac99
-  data_x(:, 10) = ci90
-  data_x(:, 11) = ci95
-  data_x(:, 12) = ci99
+! Write result file - Autospectrum X
+! ----------------------------------------
+dB6 = winbw(iwin, freq(2)-freq(1), ofac)  ! 6-dB Bandwidth
+false_alarm = (1-alphacritx) * 100 ! Critical false-alarm level
+!                                      ! (Thomson 1990)
+data_x(:, 1) = freq
+data_x(:, 2) = gxx
+data_x(:, 3) = gxxc
+data_x(:, 4) = gredthx
+data_x(:, 5) = grxxavg
+data_x(:, 6) = corrx
+data_x(:, 7) = gredthx*fac90
+data_x(:, 8) = gredthx*fac95
+data_x(:, 9) = gredthx*fac99
+data_x(:, 10) = ci90
+data_x(:, 11) = ci95
+data_x(:, 12) = ci99
 
-  data_y(:, 1) = freq
-  data_y(:, 2) = gyy
-  data_y(:, 3) = gyyc
-  data_y(:, 4) = gredthy
-  data_y(:, 5) = gryyavg
-  data_y(:, 6) = corry
-  data_y(:, 7) = gredthy*fac90
-  data_y(:, 8) = gredthy*fac95
-  data_y(:, 9) = gredthy*fac99
-  data_y(:, 10) = ci90
-  data_y(:, 11) = ci95
-  data_y(:, 12) = ci99
+data_y(:, 1) = freq
+data_y(:, 2) = gyy
+data_y(:, 3) = gyyc
+data_y(:, 4) = gredthy
+data_y(:, 5) = gryyavg
+data_y(:, 6) = corry
+data_y(:, 7) = gredthy*fac90
+data_y(:, 8) = gredthy*fac95
+data_y(:, 9) = gredthy*fac99
+data_y(:, 10) = ci90
+data_y(:, 11) = ci95
+data_y(:, 12) = ci99
 
-  data_xy(:, 1) = freq
-  data_xy(:, 2) = gxy
-  
-  data_cxy(:, 1) = freq
-  data_cxy(:, 2) = cxy
-  data_cxy(:, 3) = csig
-  data_cxy(:, 4) = csig_mc
-  data_cxy(:, 5) = ci90
-  data_cxy(:, 6) = ci95
-  data_cxy(:, 7) = ci99
-  
-  data_phxy(:, 1) = freq
-  data_phxy(:, 2) = phxy
-  data_phxy(:, 3) = ephi(1, :)
-  data_phxy(:, 4) = ephi(2, :)
-  data_phxy(:, 5) = ephi_mc(1, :)
-  data_phxy(:, 6) = ephi_mc(2, :)
+data_xy(:, 1) = freq
+data_xy(:, 2) = gxy
 
-  ! clean up
-  ! --------
-  deallocate(redx, redy, stat = ialloc)
-  deallocate (freq, gxx, gyy, gxy, cxy, phxy)
-  deallocate(grxx, gryy, grxy, crxy, phrxy)
-  deallocate(grxxsum, gryysum, grxysum,      &
-    grxxavg, gryyavg, grxyavg)
-  deallocate (gredthx, gredthy, corrx , corry,    &
-    gxxc, gyyc)
-  deallocate (ci90, ci95, ci99)
-  deallocate (gbxx,gbyy,gbxy,cbxy,phbxy,ephi_b,se_phbxy, ephi_mc, &
-    se_mc_phxy)
-end program redfitx
+data_cxy(:, 1) = freq
+data_cxy(:, 2) = cxy
+data_cxy(:, 3) = csig
+data_cxy(:, 4) = csig_mc
+data_cxy(:, 5) = ci90
+data_cxy(:, 6) = ci95
+data_cxy(:, 7) = ci99
+
+data_phxy(:, 1) = freq
+data_phxy(:, 2) = phxy
+data_phxy(:, 3) = ephi(1, :)
+data_phxy(:, 4) = ephi(2, :)
+data_phxy(:, 5) = ephi_mc(1, :)
+data_phxy(:, 6) = ephi_mc(2, :)
+
+! clean up
+! --------
+deallocate(redx, redy, stat = ialloc)
+deallocate (freq, gxx, gyy, gxy, cxy, phxy)
+deallocate(grxx, gryy, grxy, crxy, phrxy)
+deallocate(grxxsum, gryysum, grxysum,      &
+  grxxavg, gryyavg, grxyavg)
+deallocate (gredthx, gredthy, corrx , corry,    &
+  gxxc, gyyc)
+deallocate (ci90, ci95, ci99)
+deallocate (gbxx,gbyy,gbxy,cbxy,phbxy,ephi_b,se_phbxy, ephi_mc, &
+  se_mc_phxy)
+end program

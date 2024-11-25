@@ -8,7 +8,7 @@ module const
   character (len = 11) :: vers = 'REDFIT-X'
   real(dp), parameter :: pi = 3.141592653589793238462643383279502884197_dp
   real(dp), parameter :: tpi = 2 * pi
-  integer :: nout                !nout = nfreq 
+  !integer :: nout                 !nout = nfreq
   integer,parameter :: n_fnin = 2  !number of input files, 1: timeseries x, 2: timeseries y 
   integer,parameter :: nspect = 4  !1.Autospectrum x
   !2.Autospectrum y
@@ -23,7 +23,7 @@ module timeser
   implicit none
   public
   real(dp), dimension(:), allocatable :: tx, x , ty, y
-  integer :: npx, npy      !number of data points   
+  integer :: npx, npy      !number of data points
 end module timeser
 !
 ! parameter
@@ -35,7 +35,6 @@ module param
   integer, parameter :: ntry=3     ! user input: maximum number of errors
   real(dp) :: ofac
   real(dp) :: hifac = 1
-  real(dp),dimension(2) :: rhopre = -99  !1.rhopre x , 2. rhopre y
   integer :: nsim, n50, iwin
   logical :: mctest = .false.
   logical::mctest_phi=.false.
@@ -99,7 +98,7 @@ module redfit_x_module
 
 contains
   !--------------------------------------------------------------------------
-  subroutine setdim(fnin, nout)  
+  subroutine setdim(fnin)  
     !--------------------------------------------------------------------------
     ! Analyze data file and set array dimensions.
     !--------------------------------------------------------------------------
@@ -112,7 +111,6 @@ contains
     implicit none
     !
     character (len = 80), dimension (n_fnin), intent(in) :: fnin 
-    integer, intent(out) :: nout
     !
     real(dp) :: tdum, xdum, t1  
     real(dp) :: avgdtx, avgdty    !average sampling interval for x and y
@@ -191,13 +189,12 @@ contains
     fnyq = hifac * 1 / (2 * avgdtxy)       ! average Nyquist freq.
     nfreq = nint(fnyq / dfxy + 1)                     ! f(1) = f0; f(nfreq) = fNyq
     lfreq = nfreq * 2
-    nout = nfreq
     !
     ! diagnostic output to stdout
     ! ---------------------------
     print '(a)'
     print '(a,f10.2)', "dtxy =",avgdtxy
-    print '(a,i10)', "Nout =", nout
+    print '(a,i10)', "Nfreq =", nfreq
     print '(a,f10.2)', "fnyq =",fnyq
     print '(a)'
     !
@@ -273,7 +270,7 @@ contains
     integer :: i, j, istart, ialloc          
     real(dp) ::  scalx,scaly,scalxy      
     real(dp) :: rnx, rny  
-    complex(dp),dimension(nout) :: cpxy  
+    complex(dp),dimension(nfreq) :: cpxy  
     !   
     !
     ! setup workspace
@@ -346,14 +343,14 @@ contains
       !
       !    sum raw spectra
       !    -------------------
-      do j = 1, nout
+      do j = 1, nfreq
         gxx(j) = gxx(j) + (ftrx(j)*ftrx(j) + ftix(j)*ftix(j))
         gyy(j) = gyy(j) + (ftry(j)*ftry(j) + ftiy(j)*ftiy(j))
       end do
       !
       !    cross and phase spectra
       !    --------------------------
-      do j = 1,nout
+      do j = 1,nfreq
         cpxy(j) = cpxy(j) + &
           cmplx(ftrx(j), ftix(j), dp) * cmplx(ftry(j), -ftiy(j), dp)
         !the minus obtains the complex conjugate
@@ -377,7 +374,7 @@ contains
     rnx = nsegx           ! make the integer nsegx real number
     rny = nsegy
     scalxy = 2 / (n50 * sqrt(rnx * rny) * dfxy * ofac)
-    do i = 1, nout
+    do i = 1, nfreq
       gxx(i) = gxx(i) * scalx
       gyy(i) = gyy(i) * scaly
       gxy(i) = abs(cpxy(i)) * scalxy
@@ -393,7 +390,7 @@ contains
     if (n50 == 1) then
       cxy(:) = 1
     else   
-      do i=1,nout
+      do i=1,nfreq
         if(gxy(i)==0 .or. gxx(i)==0 .or. gyy(i)==0) then
           cxy(i) = 0
         else 
@@ -965,13 +962,12 @@ contains
   end function getz
 
   !----------------------------------------------------------------------
-  subroutine gettau(rhopre,tx,x,npx,tau)
+  subroutine gettau(tx,x,npx,tau)
     !----------------------------------------------------------------------
     use const
     use param, only : n50
     use minls_module
     implicit none
-    real(dp), intent(in) :: rhopre
     real(dp), dimension(:),intent(in) :: tx, x
     integer,intent(in) :: npx
     real(dp), intent(out) :: tau
@@ -983,60 +979,54 @@ contains
     ! --------------------------------
     avgdt = sum(tx(2:npx)-tx(1:npx-1)) / real(npx-1, dp)
     !
-    !if prescribed tau
-    if(rhopre .ge.0) then
-      tau = -avgdt / log(rhopre)
-    else if (rhopre.lt.0)then  
-      rhosum = 0
-      nseg = int(2 * npx / (n50 + 1))         ! points per segment
-      allocate(twk(nseg), xwk(nseg), stat = ialloc)
-      if (ialloc .ne. 0) call allocerr("a")
-      do i = 1, n50
-        !
-        !       copy data of i'th segment into workspace
-        !       ----------------------------------------
-        istart = (i-1) * nseg / 2
-        do j = 1, nseg
-          twk(j) = tx(istart + j)
-          xwk(j) = x(istart + j)
-        end do
-        !
-        !        detrend data
-        !        ------------
-        call rmtrend (twk(1:nseg), xwk(1:nseg), nseg)
-        !
-        !        estimate and sum rho for each segment
-        !        -------------------------------------
-        call tauest_x(twk(1:nseg), xwk(1:nseg), nseg, tau, rho)
-        !
-        !        bias correction for rho (Kendall & Stuart, 1967; Vol. 3))
-        !        ---------------------------------------------------------
-        rho = (rho * (real(nseg, dp) - 1) + 1) / (real(nseg, dp) - 4)
-        !
-        rhosum = rhosum + rho
+    rhosum = 0
+    nseg = int(2 * npx / (n50 + 1))         ! points per segment
+    allocate(twk(nseg), xwk(nseg), stat = ialloc)
+    if (ialloc .ne. 0) call allocerr("a")
+    do i = 1, n50
+      !
+      !       copy data of i'th segment into workspace
+      !       ----------------------------------------
+      istart = (i-1) * nseg / 2
+      do j = 1, nseg
+        twk(j) = tx(istart + j)
+        xwk(j) = x(istart + j)
       end do
       !
-      !     average rho
-      !     -----------
-      rho = rhosum / real(n50, dp)
+      !        detrend data
+      !        ------------
+      call rmtrend (twk(1:nseg), xwk(1:nseg), nseg)
       !
-      !     average tau
-      !     -----------
-      tau = -avgdt / log(rho)
+      !        estimate and sum rho for each segment
+      !        -------------------------------------
+      call tauest_x(twk(1:nseg), xwk(1:nseg), nseg, tau, rho)
       !
-      !     make sure that tau is non-negative
-      !     ----------------------------------
-      if (tau .lt. 0) then
-        print *, 'Warning: GETTAU returned tau =', tau
-        print *, '         Negative tau is forced to zero.'
-        tau = 0
-      end if
+      !        bias correction for rho (Kendall & Stuart, 1967; Vol. 3))
+      !        ---------------------------------------------------------
+      rho = (rho * (real(nseg, dp) - 1) + 1) / (real(nseg, dp) - 4)
       !
-      deallocate(twk, xwk, stat = ialloc)
-      if (ialloc .ne. 0) call allocerr("d")
-      ! 
+      rhosum = rhosum + rho
+    end do
+    !
+    !     average rho
+    !     -----------
+    rho = rhosum / real(n50, dp)
+    !
+    !     average tau
+    !     -----------
+    tau = -avgdt / log(rho)
+    !
+    !     make sure that tau is non-negative
+    !     ----------------------------------
+    if (tau .lt. 0) then
+      print *, 'Warning: GETTAU returned tau =', tau
+      print *, '         Negative tau is forced to zero.'
+      tau = 0
     end if
     !
+    deallocate(twk, xwk, stat = ialloc)
+    if (ialloc .ne. 0) call allocerr("d")
+    ! 
   end subroutine gettau
 
   !----------------------------------------------------------------------

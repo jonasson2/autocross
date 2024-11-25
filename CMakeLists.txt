@@ -32,7 +32,7 @@ set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_SOURCE_DIR}/modules)
 # Source files
 set(COMMON_SOURCES src/common_modules.f90)
 set(PEARSONT3_SOURCES src/p3_modules.f90 src/p3_subroutine.f90 ${COMMON_SOURCES})
-set(REDFITX_SOURCES src/rx_modules.f90 ${COMMON_SOURCES})
+set(REDFITX_SOURCES src/rx_modules.f90 src/rx_subroutine.f90 ${COMMON_SOURCES})
 
 # Main program files
 set(PEARSONT3_MAIN src/pearsont3.f90)
@@ -54,21 +54,21 @@ set_target_properties(pearsont3 PROPERTIES
     SUFFIX "${EXE_SUFFIX}"
 )
 
-# # Create the redfitx executable
-# add_executable(redfitx ${REDFITX_MAIN} ${REDFITX_SOURCES})
-# set_target_properties(redfitx PROPERTIES
-#   OUTPUT_NAME redfitx
-#   SUFFIX "${EXE_SUFFIX}"
-# )
+# Create the redfitx executable
+add_executable(redfitx ${REDFITX_MAIN} ${REDFITX_SOURCES})
+set_target_properties(redfitx PROPERTIES
+  OUTPUT_NAME redfitx
+  SUFFIX "${EXE_SUFFIX}"
+)
 
-# # Create the redfitx dynamic library
-# add_library(redfitx_shared SHARED ${REDFITX_SOURCES})
-# set_target_properties(redfitx_shared PROPERTIES
-#   OUTPUT_NAME redfitx
-#   SUFFIX "${SHARED_SUFFIX}"
-# )
+# Create the redfitx dynamic library
+add_library(redfitx_shared SHARED ${REDFITX_SOURCES})
+set_target_properties(redfitx_shared PROPERTIES
+  OUTPUT_NAME redfitx
+  SUFFIX "${SHARED_SUFFIX}"
+)
 
-# target_link_libraries(redfitx PRIVATE redfitx_shared)
+target_link_libraries(redfitx PRIVATE redfitx_shared)
 
 # Create the pearsont3 dynamic library
 add_library(pearsont3_shared SHARED ${PEARSONT3_SOURCES})
