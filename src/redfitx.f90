@@ -171,14 +171,19 @@ program redfitx
   nx = npx
   ny = npy
   nout = nfreq
-!
-! setup workspace for input data
-! ------------------------------
+  !
+  ! setup workspace for input data
+  ! ------------------------------
   allocate(x(npx), tx(npx))
   allocate(y(npy), ty(npy))
-!
-! retrieve time series data
-! -------------------------
+  !
+  ! workspace for output data
+  ! -------------------------
+  allocate(data_x(nout, 12), data_y(nout, 12), data_xy(nout, 2), &
+    &      data_cxy(nout, 7), data_phxy(nout, 6))
+  !
+  ! retrieve time series data
+  ! -------------------------
   call readdat(fnin)
 
   call rx_subroutine(nx, ny, nout, tx, ty, x, y, nsim, &
