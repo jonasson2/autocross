@@ -4,6 +4,7 @@
 obj/
 run/
 modules/
+rosetta/
 bin/
 build/
 .DS_Store
@@ -19,3 +20,4 @@ Icon?
 *.dSYM
 .vscode/
 .devcontainer/
+REDFIT-X-result*
