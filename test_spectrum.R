@@ -1,29 +1,4 @@
-estimate_CI <- function(time, x.series, y.series, alpha = 0.05) {
-  n = length(time)
-  print(paste('n=', n))
-  # Call the Fortran subroutine
-  print('Calling Fortran')
-  print(typeof(n))
-  print(typeof(time))
-  print(typeof(x.series))
-  print(typeof(y.series))
-  print(typeof(alpha))
-  flush.console()
-  #result = .Fortran('ss', x = x.series, s = double(1))
-  print(paste('n=', n))
-  result <- .Fortran("pearsont3sub", n = n, time = time, x = x.series,
-                     y = y.series, alpha = alpha,
-                     r = double(1), ci = double(2), taux = double(1),
-                     tauy = double(1))
-  str(result)
-  result$s
-  # list(
-  #   correlation = result$r,
-  #   confidence_interval = result$ci,
-  #   persistence_time_x = result$taux,
-  #   persistence_time_y = result$tauy
-  # )
-}
+
 
 if (Sys.info()['sysname'] == 'Windows') {
   setwd("C:/Users/kbo/Documents/autocross")
@@ -35,9 +10,10 @@ if (Sys.info()['sysname'] == 'Windows') {
   dyn.load('pearsont3.so')
 }
 
-data = read.table('test_data.txt', col.names=c('time', 'x.series', 'y.series'))
+x = read.table('x.dat', col.names=c('time', 'series'))
+y = read.table('y.dat', col.names=c('time', 'series'))
 
-print(data$time)
-#source('R/estimate_CI.R')
-result = estimate_CI(data$time, data$x.series, data$y.series)
+
+source('R/Specrum.R')
+result = Spectrum(x,y,config)
 str(result)
