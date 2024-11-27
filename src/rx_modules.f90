@@ -281,19 +281,13 @@ contains
     cxy(:) = 0
     phxy(:)= 0
     cpxy(:)= 0
-    allocate(txwk(nsegx), xwk(nsegx), tywk(nsegy), ywk(nsegy), stat = ialloc)
-    if (ialloc .ne. 0) call allocerr("a")
-    allocate(ftrx(lfreq), ftix(lfreq), ftry(lfreq), ftiy(lfreq), stat = ialloc)
-    if (ialloc .ne. 0) call allocerr("a")
+    allocate(txwk(nsegx), xwk(nsegx), tywk(nsegy), ywk(nsegy))
+    allocate(ftrx(lfreq), ftix(lfreq), ftry(lfreq), ftiy(lfreq))
     if (ini .eqv. .true.) then
-      allocate(txcos(nsegx,nfreq,n50),tycos(nsegy,nfreq,n50), stat = ialloc)
-      if (ialloc .ne. 0) call allocerr("a")
-      allocate(txsin(nsegx,nfreq,n50),tysin(nsegy,nfreq,n50), stat = ialloc)
-      if (ialloc .ne. 0) call allocerr("a")
-      allocate(wxtau(nfreq,n50),wytau(nfreq,n50), stat = ialloc)
-      if (ialloc .ne. 0) call allocerr("a")
-      allocate(wwx(nsegx,n50), wwy(nsegy,n50), stat = ialloc)
-      if (ialloc .ne. 0) call allocerr("a")
+      allocate(txcos(nsegx,nfreq,n50),tycos(nsegy,nfreq,n50))
+      allocate(txsin(nsegx,nfreq,n50),tysin(nsegy,nfreq,n50))
+      allocate(wxtau(nfreq,n50),wytau(nfreq,n50))
+      allocate(wwx(nsegx,n50), wwy(nsegy,n50))
     end if
     !
 
@@ -399,10 +393,8 @@ contains
       end do
     end if
     !
-    deallocate(txwk, xwk, tywk, ywk, stat = ialloc)
-    if (ialloc .ne. 0) call allocerr("d")
-    deallocate(ftrx, ftix, ftry, ftiy, stat = ialloc)
-    if (ialloc .ne. 0) call allocerr("d")
+    deallocate(txwk, xwk, tywk, ywk)
+    deallocate(ftrx, ftix, ftry, ftiy)
     !
   end subroutine spectr
 
@@ -981,8 +973,7 @@ contains
     !
     rhosum = 0
     nseg = int(2 * npx / (n50 + 1))         ! points per segment
-    allocate(twk(nseg), xwk(nseg), stat = ialloc)
-    if (ialloc .ne. 0) call allocerr("a")
+    allocate(twk(nseg), xwk(nseg))
     do i = 1, n50
       !
       !       copy data of i'th segment into workspace
@@ -1024,8 +1015,7 @@ contains
       tau = 0
     end if
     !
-    deallocate(twk, xwk, stat = ialloc)
-    if (ialloc .ne. 0) call allocerr("d")
+    deallocate(twk, xwk)
     ! 
   end subroutine gettau
 

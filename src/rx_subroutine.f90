@@ -2,7 +2,7 @@
 
 subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
   &  cfg_nsim, cfg_ofac, cfg_hifac, cfg_n50, cfg_alpha, cfg_iwin, &
-  &  rhox, rhoy, taux, tauy, dof, dB6, false_alarm, &
+  &  rhox, rhoy, taux, tauy, dof, db6, false_alarm, &
   &  faccritx, faccrity, alphacritx, alphacrity, &
   &  data_x, data_y, data_xy, data_cxy, data_phxy)
   use precision
@@ -22,9 +22,9 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
   real(dp), intent(in) :: tx(nx), x(nx), ty(ny), y(ny)
   real(dp), intent(in) :: cfg_ofac, cfg_hifac, cfg_alpha
   real(dp), intent(out) :: rhox, rhoy, taux, tauy, dof, &
-    dB6, false_alarm, faccritx, faccrity, alphacritx, alphacrity
+    & db6, false_alarm, faccritx, faccrity, alphacritx, alphacrity
   real(dp), intent(out) :: data_x(nout, 12), data_y(nout, 12), &
-    data_xy(nout, 2), data_cxy(nout, 7), data_phxy(nout, 6)
+    & data_xy(nout, 2), data_cxy(nout, 7), data_phxy(nout, 6)
 
   real(dp), dimension(:), allocatable :: &
     freq, &      ! frequency vector
@@ -85,27 +85,21 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
   !
   ! allocate remaining workspace
   ! ----------------------------
-  allocate(redx(nx), redy(ny), stat = ialloc)
-  if (ialloc .ne. 0) call allocerr("a")
+  allocate(redx(nx), redy(ny))
   !
   allocate (freq(nout), gxx(nout), gyy(nout), gxy(nout), &
-    cxy(nout), phxy(nout), stat = ialloc)
-  if (ialloc .ne. 0) call allocerr("a")
+    cxy(nout), phxy(nout))
   !
   allocate (grxxsum(nout),gryysum(nout),grxysum(nout), &
     grxxavg(nout),gryyavg(nout),grxyavg(nout), stat = ialloc)
-  if (ialloc .ne. 0) call allocerr("a")
   !
   allocate (gredthx(nout), gredthy(nout), corrx(nout), corry(nout), &
-    gxxc(nout), gyyc(nout), stat = ialloc)
-  if (ialloc .ne. 0) call allocerr("a")
+    gxxc(nout), gyyc(nout))
   !  
   allocate (ci90(nspect,nout), ci95(nspect,nout), &  
-    ci99(nspect,nout), stat = ialloc)
-  if (ialloc .ne. 0) call allocerr("a")
+    ci99(nspect,nout))
   !  
-  allocate (ephi(2,nout), stat = ialloc)
-  if (ialloc .ne. 0) call allocerr("a")
+  allocate (ephi(2,nout))
   !
   ! average dt of entire time series
   ! --------------------------------
@@ -135,8 +129,7 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
   ! ---------------------------------
   !
   allocate(grxx(nsim,nout),gryy(nsim,nout),grxy(nsim,nout), &
-    crxy(nsim,nout),phrxy(nsim,nout), stat = ialloc)
-  if (ialloc .ne. 0) call allocerr("a")
+    crxy(nsim,nout),phrxy(nsim,nout))
   !  
   call ranseed
   !  
@@ -377,29 +370,23 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
   !Phase Spectrum - Monte Carlo confidence interval 
   !---------------------------------------------------------------
   ! 
-  allocate (gbxx(nout), gbyy(nout), gbxy(nout), stat = ialloc)
-  if (ialloc .ne. 0) call allocerr("a")
-  allocate (cbxy(nsim, nout),phbxy(nsim, nout), stat = ialloc)
-  if (ialloc .ne. 0) call allocerr("a")
-  allocate (ephi_b(2, nout, 2), stat = ialloc)    ! 1:lowver boundary,
+  allocate (gbxx(nout), gbyy(nout), gbxy(nout))
+  allocate (cbxy(nsim, nout),phbxy(nsim, nout))
+  allocate (ephi_b(2, nout, 2))    ! 1:lowver boundary,
   ! 2:upper boundary ,
   ! 1:time-scale x
   ! 2:time-scale y
-  if (ialloc .ne. 0) call allocerr("a")
-  allocate (se_phbxy(2,nout,2), stat = ialloc)    !  1:lowver boundary,
+  allocate (se_phbxy(2,nout,2))    !  1:lowver boundary,
   !  2:upper boundary , 1:
   !  time-scale x, 2:
   !  time-scale y
-  if (ialloc .ne. 0) call allocerr("a")
-  allocate (ephi_mc(2, nout), stat = ialloc)    ! Mean over the two time
+  allocate (ephi_mc(2, nout))    ! Mean over the two time
   ! scales 1:lowver boundary,
   ! 2:upper boundary
-  if (ialloc .ne. 0) call allocerr("a")
-  allocate (se_mc_phxy(2, nout), stat = ialloc)    ! Mean over the two time
+  allocate (se_mc_phxy(2, nout))    ! Mean over the two time
   ! scales 1:lowver
   ! boundary, 2:upper
   ! boundary
-  if (ialloc .ne. 0) call allocerr("a")  
   !
   idxph_low = int((alpha/2)*nsim)
   idxph_up = int ((1-alpha/2)*nsim)
@@ -413,8 +400,7 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
       np_xy = ny
     end if
     !
-    allocate(t_xy(np_xy),stat = ialloc)
-    if (ialloc .ne. 0) call allocerr("a")
+    allocate(t_xy(np_xy))
 
     if(sg==1)then
       t_xy(:) = tx(:)
@@ -427,8 +413,7 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
     nsegx = int(2 * np_xy / (n50 + 1))             
     nsegy= int(2 * np_xy / (n50 + 1))             
     !
-    allocate (redxb(np_xy), redyb(np_xy), stat = ialloc)
-    if (ialloc .ne. 0) call allocerr("a")
+    allocate (redxb(np_xy), redyb(np_xy))
     !
     do i = 1,nout            
       if(cxy(i) .ge.csig_mc) then                   !Confidence interval is
@@ -440,9 +425,7 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
         ! g value - used to generate two time series with known coherency.
         ! cxy(i) has been bias corrected.
         !
-        deallocate (txsin, txcos,tysin, tycos, wxtau, wytau, wwx, wwy,  &
-          stat = ialloc)
-        if (ialloc .ne. 0) call allocerr("d")
+        deallocate (txsin, txcos,tysin, tycos, wxtau, wytau, wwx, wwy)
         !    
         do i_boot = 1,nsim
           call make_coherar1(redxb,redyb)  ! 2 red noise time series with
@@ -494,8 +477,7 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
       end if
     end do
     !  
-    deallocate (t_xy, redyb, redxb,  stat = ialloc)
-    if (ialloc .ne. 0) call allocerr("d")
+    deallocate (t_xy, redyb, redxb)
     !   
   end do
   !
@@ -534,7 +516,7 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
     ntime = ((kmax-kstart)+kstop) / krate
   end if
 
-  dB6 = winbw(iwin, freq(2)-freq(1), ofac)  ! 6-dB Bandwidth
+  db6 = winbw(iwin, freq(2)-freq(1), ofac)  ! 6-dB Bandwidth
   false_alarm = (1-alphacritx) * 100 ! Critical false-alarm level
   !                                      ! (Thomson 1990)
   data_x(:, 1) = freq
@@ -546,9 +528,9 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
   data_x(:, 7) = gredthx*fac90
   data_x(:, 8) = gredthx*fac95
   data_x(:, 9) = gredthx*fac99
-  data_x(:, 10) = ci90
-  data_x(:, 11) = ci95
-  data_x(:, 12) = ci99
+  data_x(:, 10) = ci90(1,:)
+  data_x(:, 11) = ci95(1,:)
+  data_x(:, 12) = ci99(1,:)
 
   data_y(:, 1) = freq
   data_y(:, 2) = gyy
@@ -559,9 +541,9 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
   data_y(:, 7) = gredthy*fac90
   data_y(:, 8) = gredthy*fac95
   data_y(:, 9) = gredthy*fac99
-  data_y(:, 10) = ci90
-  data_y(:, 11) = ci95
-  data_y(:, 12) = ci99
+  data_y(:, 10) = ci90(2,:)
+  data_y(:, 11) = ci95(2,:)
+  data_y(:, 12) = ci99(2,:)
 
   data_xy(:, 1) = freq
   data_xy(:, 2) = gxy
@@ -570,9 +552,9 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
   data_cxy(:, 2) = cxy
   data_cxy(:, 3) = csig
   data_cxy(:, 4) = csig_mc
-  data_cxy(:, 5) = ci90
-  data_cxy(:, 6) = ci95
-  data_cxy(:, 7) = ci99
+  data_cxy(:, 5) = ci90(4,:)
+  data_cxy(:, 6) = ci95(4,:)
+  data_cxy(:, 7) = ci99(4,:)
 
   data_phxy(:, 1) = freq
   data_phxy(:, 2) = phxy
@@ -583,7 +565,7 @@ subroutine rx_subroutine(nx, ny, nout, tx, ty, x, y, &
 
   ! clean up
   ! --------
-  deallocate(redx, redy, stat = ialloc)
+  deallocate(redx, redy)
   deallocate (freq, gxx, gyy, gxy, cxy, phxy)
   deallocate(grxx, gryy, grxy, crxy, phrxy)
   deallocate(grxxsum, gryysum, grxysum,      &

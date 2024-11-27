@@ -150,19 +150,21 @@ program redfitx
   use sort_module
   use redfit_x_module
   !
-  implicit noene
+  implicit none
 
-  character(len = 80) :: cfgfile, fnout
   real(dp), allocatable, dimension(:,:)::  data_x, data_y, data_xy, data_cxy, &
     & data_phxy
-  integer:: i
+  integer:: i, nx, ny, nout
+  real(dp):: rhox, rhoy, taux, tauy, dof, db6, false_alarm, faccritx, faccrity
+  real(dp):: alphacritx, alphacrity
+  character(len = 80) :: cfgfile, fnout
+  character (len =80), dimension(n_fnin) :: fnin	
+  namelist /cfg/ fnin, fnout, nsim, ofac, hifac, n50, iwin, alpha
   
   cfgfile = 'redfit-x.cfg'
-  open (10, file = cfgfile, form = 'formatted', status = 'old', iostat = iocheck)
-  if (iocheck .ne. 0 ) stop 'cannot open config file'
+  open (10, file = cfgfile, form = 'formatted', status = 'old')
   read(10, nml = cfg)
   close (10)
-  namelist /cfg/ fnin, fnout, nsim, ofac, hifac, n50, iwin, alpha
   ! mctest, mctest_phi x_sign and y_sign have been removed
 
   call setdim(fnin)
@@ -179,10 +181,11 @@ program redfitx
 ! -------------------------
   call readdat(fnin)
 
-  call rx_subroutine(nx, ny, nout, tx, ty, x, y, cfg_nsim, &
-    & cfg_ofac, cfg_hifac, cfg_n50, cfg_alpha, cfg_i, rhox, rhoy, taux, tauy,&
-    & df, 6dB, false_alarm, scale, data_x, data_y, data_xy, data_cxy,&
-    & out_data_phxy
+  call rx_subroutine(nx, ny, nout, tx, ty, x, y, nsim, &
+    & ofac, hifac, n50, alpha, iwin, rhox, rhoy, taux, tauy, &
+    & dof, db6, false_alarm, faccritx, faccrity, alphacritx, &
+    & alphacrity, data_x, data_y, data_xy, data_cxy,&
+    & data_phxy)
   !
   open (21, file = trim(fnout)//'.gxx', form = "formatted")
   open (22, file = trim(fnout)//'.gyy', form = "formatted")
