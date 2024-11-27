@@ -10,7 +10,6 @@ build/
 .DS_Store
 *~
 a.out
-*.dat
 *.o
 pearsont3
 redfitx
