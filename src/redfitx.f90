@@ -140,7 +140,6 @@ program redfitx
   !
   use precision
   use const       ! some constants
-  use timeser     ! defines tx, x, ty, y, npx, npy
   use param       ! defines namelist parameterxs (as redfit-x.cfg)
   use trigwindat  ! defines txcos, txsin, tycos, tysin, wxtau, wytau, wwx, wwy
   use nyquist  ! defines nsegx, nsegy, dfxy, avgtxy, fnyq, wz, nfreq, lfreq
@@ -154,9 +153,10 @@ program redfitx
 
   real(dp), allocatable, dimension(:,:)::  data_x, data_y, data_xy, data_cxy, &
     & data_phxy
-  integer:: i, nx, ny, nout
+  integer:: i, npx, npy, nout
   real(dp):: rhox, rhoy, taux, tauy, dof, db6, false_alarm, faccritx, faccrity
   real(dp):: alphacritx, alphacrity
+  real(dp), allocatable :: tx(:), x(:), ty(:), y(:)
   character(len = 80) :: cfgfile, fnout
   character (len =80), dimension(n_fnin) :: fnin	
   namelist /cfg/ fnin, fnout, nsim, ofac, hifac, n50, iwin, alpha
@@ -167,26 +167,25 @@ program redfitx
   close (10)
   ! mctest, mctest_phi x_sign and y_sign have been removed
 
-  call setdim(fnin)
-  nx = npx
-  ny = npy
-  nout = nfreq
+  call count_series_files(fnin, npx, npy)
   !
   ! setup workspace for input data
   ! ------------------------------
   allocate(x(npx), tx(npx))
   allocate(y(npy), ty(npy))
   !
+  ! retrieve time series data
+  ! -------------------------
+  call readdat(fnin, npx, npy, tx, x, ty, y)
+  call calc_nyquist_param(npx, npy, tx, ty)
+  nout = nfreq
+  !
   ! workspace for output data
   ! -------------------------
   allocate(data_x(nout, 12), data_y(nout, 12), data_xy(nout, 2), &
     &      data_cxy(nout, 7), data_phxy(nout, 6))
-  !
-  ! retrieve time series data
-  ! -------------------------
-  call readdat(fnin)
 
-  call rx_subroutine(nx, ny, nout, tx, ty, x, y, nsim, &
+  call rx_subroutine(npx, npy, nout, tx, x, ty, y, nsim, &
     & ofac, hifac, n50, alpha, iwin, rhox, rhoy, taux, tauy, &
     & dof, db6, false_alarm, faccritx, faccrity, alphacritx, &
     & alphacrity, data_x, data_y, data_xy, data_cxy,&

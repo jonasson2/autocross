@@ -151,7 +151,6 @@ contains
     real(dp) :: tpx, tpy      !average period of segment x and y
     real(dp) :: dfx, dfy      !frequency spacing for x and y
 
-    integer :: i, iocheck, j
     !
     ! number of output data (results saved in the module nyquist)
     ! ----------------------------------------------------------
@@ -194,7 +193,7 @@ contains
     character (len = 80), dimension (n_fnin), intent(in) :: fnin
     integer, intent(in) :: npx, npy
     real(dp), intent(out) :: tx(:), x(:), ty(:), y(:)
-    integer :: i, iocheck, j
+    integer :: i, j
     character (len = 1) :: flag
     !
     do j = 1,n_fnin    !Goes through inputfile x and y
@@ -252,7 +251,7 @@ contains
     !
     real(dp), dimension(:), allocatable :: txwk, xwk, ftrx, ftix, &  
       tywk, ywk, ftry, ftiy                                         
-    integer :: i, j, istart, ialloc          
+    integer :: i, j, istart
     real(dp) ::  scalx,scaly,scalxy      
     real(dp) :: rnx, rny  
     complex(dp),dimension(nfreq) :: cpxy  
@@ -896,6 +895,7 @@ contains
     real(dp) :: atmp, acalc, zr, zl, zm, z
     integer :: iter
     !
+    z = 0
     if (alpha .lt. 0.5_dp) then
       atmp = alpha * 2
       zr = -0.1_dp
@@ -904,8 +904,7 @@ contains
       do while(.true.)
         iter= iter + 1
         if (iter .gt. itmax) then
-          print *, "Error in GETZ: Iter > ItMax"
-          return
+          stop "Error in GETZ: Iter > ItMax"
         end if
         zm = (zl + zr) / 2
         z = zm
@@ -923,8 +922,7 @@ contains
       do while(.true.)
         iter= iter + 1
         if (iter .gt. itmax) then
-          write(*,*) "Error in GETZ: Iter > ItMax"
-          return
+          stop "Error in GETZ: Iter > ItMax"
         end if
         zm = (zl + zr) / 2
         z = zm
@@ -949,7 +947,7 @@ contains
     integer,intent(in) :: npx
     real(dp), intent(out) :: tau
     real(dp), dimension(:), allocatable :: twk, xwk
-    integer :: nseg, i, j, istart, ialloc
+    integer :: nseg, i, j, istart
     real(dp) :: rho, rhosum, avgdt
     !
     ! average dt of entire time series

@@ -64,8 +64,8 @@ subroutine rx_subroutine(nx, ny, nout, tx, x, ty, y, &
     varrx, varry, varxy, &
     varrxy, cobias, facphi, z, csig, se_dummy
   integer:: kstart, kstop, krate, kmax, ntime
-  integer :: i, iocheck, ialloc
-  integer :: idx90, idx95, idx99, iostat
+  integer :: i, ialloc
+  integer :: idx90, idx95, idx99
   logical :: ini, biascorr
   print *, 'ty(1)=', ty(1)
   !
@@ -137,12 +137,12 @@ subroutine rx_subroutine(nx, ny, nout, tx, x, ty, y, &
   !  
   call ranseed
   !  
-  grxxsum(:) = 0
-  gryysum(:) = 0
-  grxysum(:) = 0
-  grxxavg(:) = 0
-  gryyavg(:) = 0
-  grxyavg(:) = 0
+  grxxsum(1:nout) = 0
+  gryysum(1:nout) = 0
+  grxysum(1:nout) = 0
+  grxxavg(1:nout) = 0
+  gryyavg(1:nout) = 0
+  grxyavg(1:nout) = 0
   !
   call getdof(iwin, n50, dof, neff)
   !
@@ -473,7 +473,7 @@ subroutine rx_subroutine(nx, ny, nout, tx, x, ty, y, &
         !to form the
         !confidence interval
         ephi_b(2,i,sg) = phxy(i) + phbxy(idxph_up, i)
-      else if (cxy(i).lt. csig_mc) then		
+      else if (cxy(i).lt. csig_mc) then
         ephi_b(1,i,sg) = -999.0
         ephi_b(2,i,sg) = -999.0
         se_phbxy(1,i,sg) = -999.0

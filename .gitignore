@@ -11,6 +11,7 @@ build/
 *~
 a.out
 *.o
+*.gz
 pearsont3
 redfitx
 Icon*

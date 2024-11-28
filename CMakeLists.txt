@@ -32,7 +32,7 @@ set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_SOURCE_DIR}/modules)
 # Source files
 set(COMMON_SOURCES src/common_modules.f90)
 set(PEARSONT3_SOURCES src/p3_modules.f90 src/p3_subroutine.f90 ${COMMON_SOURCES})
-set(REDFITX_SOURCES src/rx_modules.f90 src/rx_subroutine.f90 ${COMMON_SOURCES})
+set(REDFITX_SOURCES src/rx_modules.f90 src/rx_subroutines.f90 ${COMMON_SOURCES})
 
 # Main program files
 set(PEARSONT3_MAIN src/pearsont3.f90)

@@ -11,16 +11,12 @@ if (Sys.info()['sysname'] == 'Windows') {
 x = read.table('x.dat', col.names=c('time', 'series'))
 y = read.table('y.dat', col.names=c('time', 'series'))
 config = list(
-  nsim = 1000,
+  nsim = as.integer(1000),
   ofac = 4.0,
   hifac = 1.0,
-  n50 = 7,
+  n50 = as.integer(7),
   alpha = 0.05,
-  iwin = 1)
-
+  iwin = as.integer(1))
 source('R/spectrum.R')
-str(x)
-str(y)
-str(config)
 result = spectrum(x,y,config)
 str(result)
