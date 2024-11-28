@@ -7,6 +7,7 @@ modules/
 rosetta/
 bin/
 build/
+man/
 .DS_Store
 *~
 a.out
