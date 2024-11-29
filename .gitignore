@@ -14,7 +14,7 @@ a.out
 *.o
 *.gz
 pearsont3
-autocross/NAMESPACE
+#autocross/NAMESPACE
 redfitx
 Icon*
 Icon?
