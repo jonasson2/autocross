@@ -8,6 +8,7 @@
 #' @param y.series A numeric vector containing the y-series data.
 #' @param alpha The significance level for the confidence interval (default is 0.05).
 #' @return A list containing the estimated correlation, confidence interval values, and persistence times.
+#' @useDynLib autocross, .registration = TRUE
 #' @export
 estimate_CI <- function(time, x.series, y.series, alpha = 0.05) {
   n = length(time)

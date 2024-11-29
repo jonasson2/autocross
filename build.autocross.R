@@ -1,5 +1,4 @@
 setwd("~/autocross/autocross")
-Sys.setenv(FC = "/opt/homebrew/bin/gfortran")
 devtools::build()
 devtools::document()
 install.packages("~/autocross/autocross_0.0.0.9000.tar.gz", repos=NULL, type="source")
