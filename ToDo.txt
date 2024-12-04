@@ -1,0 +1,20 @@
+To do :
+
+pakki til að fara eftir lbfgsb3c
+
+autocross/NEWS.md 	búa til skjal til að halda utan um breytingar
+
+autocross/inst/:
+
+	Manual 			uppfæra og setja inní inst/doc
+
+	data skjöl		stytta raðirnar og setja svo inní inst/data
+
+autocross/DESCRIPTION	skrifa meira í description í skjalinu
+
+autocross/vignettes	dæmi sem við verðum með og það gæti svo verið inní þessari möppu
+
+autocross/tests		skrifa test forrit í R
+
+autocross/README.md	skrifa readme skjal - skoða önnur Readme skjöl í öðrum pökkum
+
