@@ -1,6 +1,5 @@
-subroutine prufa(n,x)
-  integer, intent(in) :: n
-  double precision, intent(out) :: x(2,3)
-  print *, 'n=', n
-  x = reshape([1, 2, 3, 4, 5, 6], shape = [2,3])
-end subroutine prufa
+program prufa
+  integer :: n
+  n = 2
+  print *, 2*n
+end program prufa
