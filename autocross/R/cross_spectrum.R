@@ -1,4 +1,4 @@
-#' Estimate spectrum...
+#' Estimate cross_spectrum...
 #'
 #' This function ...
 #'
@@ -8,7 +8,7 @@
 #' @return named list...
 #' @useDynLib autocross, .registration = TRUE
 #' @export
-spectrum <- function(x, y, config) {
+cross_spectrum <- function(x, y, config) {
   print('config:')
   str(config)
   dim_result <- .Fortran("rx_setdim",

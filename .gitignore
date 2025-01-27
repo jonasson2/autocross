@@ -13,6 +13,8 @@ man/
 a.out
 *.o
 *.gz
+*.ipynb_checkpoints
+*.pdf
 pearsont3
 #autocross/NAMESPACE
 redfitx
