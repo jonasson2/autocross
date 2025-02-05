@@ -46,8 +46,8 @@ module parameters
   use precision
   implicit none
   integer, parameter :: nmin=10      ! Minimum number of points
-  integer, parameter :: b1=2000      ! Number of bootstrap simulations 1
-  integer, parameter :: b2=1000      ! Number of bootstrap simulations 2	 
+  integer, parameter :: b1=200       ! Number of bootstrap simulations 1
+  integer, parameter :: b2=100       ! Number of bootstrap simulations 2	 
   real(dp) :: alpha=0.025_dp         ! Confidence level (1 - 2 * alpha)
   integer, parameter :: imax=10000   ! Big integer
   integer, parameter :: ntry=5       ! user input: maximum number of errors
@@ -885,8 +885,7 @@ contains
   subroutine init1b
     use precision
     use data1, only: t1,x1,y1
-    use data2, only: t2,x2,x3,y2,y3,x3_resample1,y3_resample1,  &
-      x3_resample2,y3_resample2
+    use data2, only: t2,x2,x3,y2,y3,x3_resample1,y3_resample1, x3_resample2,y3_resample2
     implicit none
     !       Initializes t2, x2, y2, x3, y3, x3_resample1, y3_resample1,
     !       x3_resample2, y3_resample2
@@ -1004,8 +1003,6 @@ contains
     call info2('w',outputfile)
     call info3('w',outputfile)
     call info4('w',outputfile)
-    print '(a)','Press Enter to exit'
-    !read (5,'(a)') dummy
   end subroutine output
   !
   !=============================================================================

@@ -246,7 +246,6 @@ contains
     do                        !  main loop starts here
 
       xm = half*(a + b)
-      print *, 'xm=', xm
       tol1 = sqrteps*abs(x) + tol/3.0_wp
       tol2 = 2.0_wp*tol1
 
@@ -1406,8 +1405,8 @@ contains
     use meanvar_module
     implicit none
     integer, intent(in) :: n        ! number of data points
-    real(dp), dimension(n), intent(in) :: t_in  ! time
-    real(dp), dimension(n), intent(in) :: x_in  ! time-series values
+    real(dp), dimension(:), intent(in) :: t_in  ! time
+    real(dp), dimension(:), intent(in) :: x_in  ! time-series values
     real(dp), intent(out) :: tau    ! result: persistence time tau
     real(dp), intent(out) :: rhoout ! result: equivalent autocorrelation
     ! coefficient
@@ -1438,8 +1437,6 @@ contains
     !
     ! 1.    Rename and change time direction
     !       ===============================
-    t = 0  ! prevent warning --- bug in gfortran
-    x = 0
     do i=n,1,-1
       t(i)=-1.0_dp*t_in(n+1-i)
       x(i)=+1.0_dp*x_in(n+1-i)
