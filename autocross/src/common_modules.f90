@@ -230,7 +230,6 @@ contains
     real(wp),parameter :: sqrteps = sqrt(epsilon(1.0_wp))
 
     !     initialization
-    print *,'beginning of newbrent'
     a = ax
     ! b = bx
     ! v = a + c*(b - a)
