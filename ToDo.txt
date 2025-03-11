@@ -20,6 +20,7 @@ autocross/README.md	skrifa readme skjal - skoða önnur Readme skjöl í öðrum
 
 
 
+<<<<<<< HEAD
 Varðandi ískjarnagögn. TScale.txt - nýjasta aldursmódel
 
 chrome-extension://efaidnbmnnnibpcajpcglclefindmkaj/https://essd.copernicus.org/articles/15/3351/2023/essd-15-3351-2023.pdf
@@ -33,3 +34,6 @@ Tímaskali, tökum meðaltöl yfir einhver tímabil og reiknum fylgni milli með
 Þurfum að velja lengd þessara tímabila, með einhverri simulations studíu. 
 
 Búum til einhvað sem líkist röðunum. Reiknum út mismunandi tímabil og tékkum á hvort við séum að fá "rétta" fylgni. Hvað er besta lengdin. 
+=======
+
+>>>>>>> a487bcc7243468bd3f36dbbeb072d8e0361e9c17

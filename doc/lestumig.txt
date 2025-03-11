@@ -13,3 +13,6 @@ source bin/setpath.sh
 change directory to run
 edit redfit-x.cfg
 ./redfit-x.cfg
+
+Greinar:
+Holme, Gkinis et.al. 2019: Varying regional delta-O... M.a. með Renland vs hitaraðir í kring

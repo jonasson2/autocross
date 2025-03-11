@@ -14,13 +14,6 @@ estimate_CI <- function(time, x.series, y.series, alpha = 0.05) {
   n = length(time)
   print(paste('n=', n))
   # Call the Fortran subroutine
-  print('Calling Fortran')
-  print(typeof(n))
-  print(typeof(time))
-  print(typeof(x.series))
-  print(typeof(y.series))
-  print(typeof(alpha))
-  flush.console()
   result <- .Fortran("p3_subroutine", n = n, time = time, x = x.series,
                      y = y.series, alpha = alpha,
                      r = double(1), ci = double(2), taux = double(1),

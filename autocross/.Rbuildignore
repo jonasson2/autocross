@@ -1,3 +1,5 @@
 ^Icon\r$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+\.#
+.*~$
