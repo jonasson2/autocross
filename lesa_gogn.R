@@ -1,65 +1,35 @@
 #setwd("C:/Users/kbo/Documents/autocross")
 library(ggplot2)
 
-sty=read.table('t_sty_1798.txt',header=TRUE)
-names(sty)=c('stod','year','t')
+source('read_data.R')
+result = get_tasi()
+tasi = result$tasi
+tasim = result$tasim
+sty = result$sty
+græn = result$græn
 
-tscale=read.table('GICC05_time_scale.tab',header=TRUE,row.names=NULL, sep='\t')
+result = get_dye3()
+dye3 = result$dye3
+annual = result$annual
 
-tscale <- read.table("GICC05_time_scale.tab",
-                 header = TRUE,        # The first row contains column names
-                 sep = "\t",           # Tab-separated values
-                 row.names = NULL,
-                 check.names = FALSE,
-                 stringsAsFactors = FALSE,
-                 comment.char = "")
+core = subset(dye3, year > 1890, select=c('d18', 'year'))
+core$d18s = (core$d18 - mean(core$d18))/sd(core$d18)
 
+dev.off()
+yrmin = 1920
+yrmax = 1980
+plot(tasim$yrmonth, tasim$t, 'l', xlim=c(yrmin,yrmax), ylim=c(-15, 8))
+lines(core$year, core$d18s, 'l', col='red')
+lines(tasi$yr, tasi$t, 'l', col='blue')
+abline(v = seq(yrmin, yrmax, by = 1), col = "gray", lty = 1)
 
-dye3 <- read.table("DYE-3maincore_water_isotopes.tab",
-                     header = TRUE,        # The first row contains column names
-                     sep = "\t",           # Tab-separated values
-                     row.names = NULL)
-
-names(dye3)[names(dye3) == "d18O"] = "d18"
-types <- read.table("NGRIP2_layer_types.txt",
-                   header = TRUE,        # The first row contains column names
-                   sep = "\t",           # Tab-separated values
-                   row.names = NULL)
-
-
-dye3$time <- approx(x=tscale$DYE3, y=tscale$Age, xout=dye3$depth)$y
-dye3$year <- as.integer(approx(x=tscale$DYE3, y=tscale$year, xout=dye3$depth)$y)
-
-library(dplyr)
-
-annual <- dye3 %>%
-  filter(!is.na(year)) %>%  # Exclude rows with missing year values
-  group_by(year) %>%
-  summarise(d18 = mean(d18, na.rm = TRUE))
-
-print(annual)
-
-ig=merge(annual,sty, by='year')
-print(ig)
-
-ig$sty_std = (ig$t - mean(ig$t))/sd(ig$t)
-ig$d18_std = (ig$d18 - mean(ig$d18))/sd(ig$d18)
-
-ggplot(ig, aes(year)) +
-  geom_line(aes(year,d18_std),color='darkred')+
-  geom_line(aes(year,sty_std),color='blue')+
-  scale_x_continuous(breaks=seq(1800,1990,4))+
-  scale_y_continuous(name="d18", sec.axis=sec_axis(~., name="t"))
-
-ggplot(tail(annual,80),aes(year,d18)) + geom_line(size=1)+
-     scale_x_continuous(breaks=seq(1900,1990,4))
-
-ggplot(sty,aes(AR,T)) + geom_line(size=1)
-
-plot(types$Depth, cumsum(types$Type-1))
-sum(types$Type==1)
-sum(types$Type==2)
-sum(types$Type==3)
-str(types)
-types$age <- as.integer(approx(x=tscale$NGRIP2, y=tscale$Age, xout=types$Depth)$y)
-t
+dev.off()
+yrmin = 1798
+yrmax = 1980
+d18shifted = annual$d18 + 27
+plot(tasi$yr, tasi$t, 'l', xlim=c(yrmin,yrmax), ylim=c(-5, 5), lwd=2)
+lines(annual$yr, d18shifted, 'l', col='red', lwd=2)
+lines(sty$yr, sty$t, 'l', col='dodgerblue', lwd=2)
+lines(græn$yr, græn$t, 'l', col='mediumseagreen', lwd=2)
+abline(v = seq(yrmin, yrmax, by = 5), col = "gray", lty = 1)
+abline(h = seq(-5,5), col = "gray", lty = 1)
