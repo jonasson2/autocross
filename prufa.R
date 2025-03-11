@@ -14,3 +14,4 @@ print(data$time)
 #source('R/estimate_CI.R')
 result = estimate_CI(data$time, data$x.series, data$y.series)
 str(result)
+

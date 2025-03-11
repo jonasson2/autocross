@@ -30,6 +30,7 @@ types <- read.table("NGRIP2_layer_types.txt",
 plot(d18O$depth,d18O$d18O,'l')
 
 dye3$time <- approx(x=tscale$DYE3, y=tscale$Age, xout=dye3$depth)$y
+dye3$yeartime <- approx(x=tscale$DYE3, y=tscale$year, xout=dye3$depth)$y
 dye3$year <- as.integer(approx(x=tscale$DYE3, y=tscale$year, xout=dye3$depth)$y)
 
 library(dplyr)
@@ -56,8 +57,8 @@ ggplot(tail(annual,80),aes(year,d18O)) + geom_line(size=1)+
 
 
 
-ggplot(tail(head(d18O,400),200),aes(time,d18O)) + geom_line(size=1)+
-  +   scale_x_continuous(breaks=seq(40,90,1))
+ggplot(tail(head(dye3,200),200),aes(yeartime,d18O)) + geom_line(size=1)+
+    scale_x_continuous(breaks=seq(0,2000,1))
 
 
 
