@@ -12,6 +12,9 @@ man/
 *~
 a.out
 *.o
+*.exe
+*.dll
+*.RData
 *.gz
 *.ipynb_checkpoints
 *.pdf
