@@ -1,9 +1,10 @@
 #setwd("C:/Users/kbo/Documents/autocross")
+setwd("~/autocross")
 library(ggplot2)
 
 # READ TEMPERATURE DATA
 source('read_data.R')
-result = get_tasi()
+result = get_temperature()
 tasi = result$tasi
 tasim = result$tasim
 sty = result$sty
@@ -18,3 +19,5 @@ annual = result$annual
 source('plot_d18_t.R')  # To do: búa til tvö plott.
 plot_monthly(tasim, dye3)
 plot_annual(annual, tasi, græn, sty)
+
+

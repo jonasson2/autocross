@@ -1,4 +1,6 @@
+library(dplyr)
 get_dye3 = function() {
+
   tscale=read.table('GICC05_time_scale.tab',header=TRUE,row.names=NULL, sep='\t')
 
   tscale <- read.table("GICC05_time_scale.tab",
