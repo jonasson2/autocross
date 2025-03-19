@@ -46,8 +46,8 @@ module parameters
   use precision
   implicit none
   integer, parameter :: nmin=10      ! Minimum number of points
-  integer, parameter :: b1=200       ! Number of bootstrap simulations 1
-  integer, parameter :: b2=100       ! Number of bootstrap simulations 2	 
+  integer, parameter :: b1=2000      ! Number of bootstrap simulations 1
+  integer, parameter :: b2=1000      ! Number of bootstrap simulations 2	 
   real(dp) :: alpha=0.025_dp         ! Confidence level (1 - 2 * alpha)
   integer, parameter :: imax=10000   ! Big integer
   integer, parameter :: ntry=5       ! user input: maximum number of errors

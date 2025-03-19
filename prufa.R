@@ -3,7 +3,7 @@ if (Sys.info()['sysname'] == 'Windows') {
   if (is.loaded('pearsont3sub')) dyn.unload('pearsont3.dll')
   dyn.load('pearsont3.dll')
 } else {
-  setwd('~/drive/autocross')
+  setwd('~/autocross')
   if (is.loaded('pearsont3sub')) dyn.unload('pearsont3.so')
   dyn.load('pearsont3.so')
 }
