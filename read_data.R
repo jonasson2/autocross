@@ -28,7 +28,7 @@ get_dye3 = function() {
   annual <- dye3 %>%
     group_by(yr = as.integer(year)) %>%
     summarise(d18 = mean(d18, na.rm = TRUE))
-  list(dye3=dye3, annual=annual)
+  list(monthly=dye3, annual=annual)
 }
 
 get_temperature = function() {

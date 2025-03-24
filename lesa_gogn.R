@@ -1,40 +1,45 @@
 #setwd("C:/Users/kbo/Documents/autocross")
 setwd("~/autocross")
 library(ggplot2)
+library(autocross)
 
 # READ TEMPERATURE DATA
 source('read_data.R')
-result = get_temperature()
-tasi = result$tasi
-tasim = result$tasim
-sty = result$sty
-græn = result$græn
+t.res = get_temperature()
+tasi = t.res$tasi
+tasim = t.res$tasim
+sty = t.res$sty
+græn = t.res$græn
 
 # READ DYE3 DATA
-result = get_dye3()
-dye3 = result$dye3
-annual = result$annual
+dye3.res = get_dye3()
+dye3.monthly = dye3.res$monthly
+dye3.annual = dye3.res$annual
 
 # PLOT MONTHLY AND ANNUAL MEANS
 source('plot_d18_t.R')  # To do: búa til tvö plott.
-plot_monthly(tasim, dye3)
-plot_annual(annual, tasi, græn, sty)
+plot_monthly(tasim, dye3.monthly)
+plot_annual(dye3.annual, tasi, græn, sty)
 
-# TEST VARIABLE TIME STEP CORRELATION
-source('read_data.R')
-#source('resampling.R')
-library(autocross)
-hiti = get_temperature()
-sty = hiti$sty
-
-dye3 = get_dye3()
-end_yr = tail(dye3$annual$yr, 1)
+# DETERMINE EDGES, I.E. END POINTS OF RESAMPLING INTERVALS
+source('resampling.R')
+end_yr = tail(dye3.annual$yr, 1)
 beg_yr = 1780
-n_points = 119
-rsint = resample(beg_yr, end_yr, 2)
-sty_resamp = apply_resampling(sty, rsint, "t", reference_yr, n_points)
-dye3_resamp = apply_resampling(dye3$annual, rsint, "d18", reference_yr, n_points)
+edges = resample(beg_yr, end_yr, 2)
 
-result = estimate_CI(time = dye3_resamp$yr,
-                     x.series = dye3_resamp$d18,
-                     y.series = sty_resamp$t)
+# FUNCTION TO COMPUTE CORRELATION BETWEEN A PAIR OF TIME SERIES
+find_CI = function(edges, df1, var1, df2, var2) {
+  resamp1 = apply_resampling(df1, edges, var1)
+  resamp2 = apply_resampling(df2, edges, var2)
+  common.res = common_time(resamp1, var1, resamp2, var2)
+  time = 2000 - common.res$yr
+  x = common.res$x
+  y = common.res$y
+  result = estimate_CI(time, x, y)
+  str(result)
+}
+
+#s = find_CI(edges, sty, 't', dye3.annual, 'd18')
+#s = find_CI(edges, sty, 't', dye3.annual, 'd18')
+s = find_CI(edges, græn, 't', tasi, 'd18')
+str(s)
