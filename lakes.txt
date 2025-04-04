@@ -1,4 +1,4 @@
-age (2k)-20yr	HAK&HVT combined
+age_b2k	temperature_proxy
 -1	-0.80
 19	-0.77
 39	-0.94

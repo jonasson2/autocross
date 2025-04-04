@@ -42,10 +42,11 @@ subroutine p3_subroutine(n, t, x, y, confidence_level, corr, ci, taux, tauy)
   ci = [r_low, r_upp]
   taux = taux3
   tauy = tauy3
-  print *,'at (1)'
+  print *, 'at (1)'
   if (allocate0_here) then
     call deallocate0
     call deallocate_resample_data
     call deallocate1
   end if
+  print *, 'at (2)'
 end subroutine p3_subroutine

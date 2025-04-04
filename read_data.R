@@ -31,6 +31,16 @@ get_dye3 = function() {
   list(monthly=dye3, annual=annual)
 }
 
+get_lakes = function() {
+  lakes <- read.table("lakes.txt",
+              header = TRUE,        # The first row contains column names
+              sep = "\t",           # Tab-separated values
+              row.names = NULL,
+              col.names = c("age", "tproxy"))
+  lakes$yr = 2000 - lakes$age
+  lakes
+}
+
 get_temperature = function() {
   # Reads monthly temperature data from Tasiilaq
   # Returns a dataframe of monthly means with time in fractional years
