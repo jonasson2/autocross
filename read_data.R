@@ -33,12 +33,21 @@ get_dye3 = function() {
 
 get_lakes = function() {
   lakes <- read.table("lakes.txt",
-              header = TRUE,        # The first row contains column names
-              sep = "\t",           # Tab-separated values
+              header = TRUE,
+              sep = "\t",
               row.names = NULL,
               col.names = c("age", "tproxy"))
   lakes$yr = 2000 - lakes$age
   lakes
+}
+
+get_renland = function() {
+  renland <- read.table("renland.csv",
+                      header = TRUE,
+                      sep = ";",
+                      row.names = NULL)
+  #renland$yr = 2000 - renland$age
+  renland
 }
 
 get_temperature = function() {

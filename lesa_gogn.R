@@ -3,7 +3,7 @@ setwd("~/autocross")
 library(ggplot2)
 library(autocross)
 
-# READ TEMPERATURE DATA
+# READ TEMPERATUE DATA
 source('read_data.R')
 t.res = get_temperature()
 tasi = t.res$tasi
@@ -18,6 +18,7 @@ dye3.annual = dye3.res$annual
 
 # READ HAK-HVT TEMPERATURE PROXY
 lakes = get_lakes()
+lakes$tproxy = detrend(lakes$tproxy)
 
 # PLOT MONTHLY AND ANNUAL MEANS
 source('plot_d18_t.R')  # To do: búa til tvö plott.
@@ -29,7 +30,7 @@ debugSource('resampling.R')
 # debug_all()
 end_yr = tail(dye3.annual$yr, 1)
 beg_yr = -3800
-#obs.edges = resample(beg_yr, end_yr, 0.9, 100)
+#obs.edges = resample(beg_yr, end_yr, 0.9, 1
 
 # FUNCTION TO COMPUTE CORRELATION BETWEEN A PAIR OF TIME SERIES
 find_CI = function(edges, df1, var1, df2, var2) {

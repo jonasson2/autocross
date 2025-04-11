@@ -40,10 +40,11 @@ common_time <- function(df1, var1, df2, var2) {
   # df1 and df2 should have the same yr columns (from apply_resampling).
   # Returns the values of yr where both var1 and var2 are specified
   # (don't have NaN value), along with the corresponding var1 and var2
-  # Also detrends.
   stopifnot(identical(df1$yr, df2$yr))
   I <- !is.nan(df1[[var1]]) & !is.nan(df2[[var2]])
-  x = detrend(df1[I,var1])
-  y = detrend(df2[I,var2])
+  #x = detrend(df1[I,var1])
+  #y = detrend(df2[I,var2])
+  x = df1[I, var1]
+  y = df2[I, var2]
   list(yr = df1$yr[I], x = x, y = y)
 }
