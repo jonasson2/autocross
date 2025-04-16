@@ -1,15 +1,14 @@
-library(pracma)
-
-resample = function(begyr, endyr, alpha, n) {
-  d = endyr - begyr
-  edges = endyr - seq(0^alpha, d^alpha, length.out=n+1)^(1/alpha)
-  edges[n+1] = begyr
+resample = function(oldyr, newyr, alpha, n) {
+  # Returns edges forward in time
+  d = newyr - oldyr
+  edges = newyr - seq(0^alpha, d^alpha, length.out=n+1)^(1/alpha)
+  edges[n+1] = oldyr
   edges = rev(edges)
   # OUTPUT THE RESAMPLING INTERVALS:
   print('Resampling intervals:')
   reportyr = c(-8000,-4000,-2000,0,1000,1500,1700,1800,1900,2000)
-  reportyr <- sort(unique(c(reportyr, begyr, endyr)))
-  reportyr <- reportyr[begyr <= reportyr & reportyr <= endyr]
+  reportyr <- sort(unique(c(reportyr, oldyr, newyr)))
+  reportyr <- reportyr[oldyr <= reportyr & reportyr <= newyr]
   for (yr in reportyr) {
     i <- findInterval(yr, edges, rightmost.closed = TRUE)
     len = edges[i+1] - edges[i]
@@ -22,7 +21,7 @@ apply_resampling <- function(df, edges, variable) {
   # Resamples the specified variable to the intervals specified by edges
   # from the function "resample". Includes interpolated values at the
   # edges so that cases where no points fall in the intervals are also
-  # handled. Returns a resampled dataframe.
+  # handled. Returns a resampled dataframe, going back in time.
   midpoints <- (head(edges, -1) + tail(edges, -1)) / 2
   newdf <- data.frame(yr = midpoints)
   newdf[[variable]] <- NA
@@ -33,7 +32,7 @@ apply_resampling <- function(df, edges, variable) {
     vals <- c(left_val, df[[variable]][inside], right_val)
     newdf[i, variable] <- mean(vals, na.rm = TRUE)
   }
-  newdf
+  newdf[nrow(newdf):1, ]
 }
 
 common_time <- function(df1, var1, df2, var2) {
@@ -42,8 +41,6 @@ common_time <- function(df1, var1, df2, var2) {
   # (don't have NaN value), along with the corresponding var1 and var2
   stopifnot(identical(df1$yr, df2$yr))
   I <- !is.nan(df1[[var1]]) & !is.nan(df2[[var2]])
-  #x = detrend(df1[I,var1])
-  #y = detrend(df2[I,var2])
   x = df1[I, var1]
   y = df2[I, var2]
   list(yr = df1$yr[I], x = x, y = y)

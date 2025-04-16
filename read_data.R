@@ -26,8 +26,11 @@ get_dye3 = function() {
   dye3$year <- approx(x=tscale$DYE3, y=tscale$year, xout=dye3$depth)$y + 1/12
   dye3 = subset(dye3, !is.na(time) & !is.na(d18))
   annual <- dye3 %>%
+    filter(!is.na(year)) %>%
     group_by(yr = as.integer(year)) %>%
     summarise(d18 = mean(d18, na.rm = TRUE))
+  annual <- annual[nrow(annual):1,]  # reverse
+  annual <- annual[annual$yr >= -3800,]
   list(monthly=dye3, annual=annual)
 }
 
@@ -42,12 +45,17 @@ get_lakes = function() {
 }
 
 get_renland = function() {
-  renland <- read.table("renland.csv",
+  renland <- read.table("renland.tab",
                       header = TRUE,
-                      sep = ";",
+                      sep = "\t",
                       row.names = NULL)
-  #renland$yr = 2000 - renland$age
-  renland
+  renland = renland[, c("depth", "d18O", "year")]
+  annual <- renland %>%
+    filter(!is.na(year)) %>%
+    group_by(yr = as.integer(year)) %>%
+    summarise(d18 = mean(d18O, na.rm = TRUE))
+  annual <- annual[nrow(annual):1,]  # reverse
+  annual
 }
 
 get_temperature = function() {
@@ -71,5 +79,9 @@ get_temperature = function() {
   græn=read.table('SW_Greenland1840.txt',header=FALSE)
   names(sty)=c('yr','t')
   names(græn)=c('yr','t')
+  # Make series go backwards in time
+  tasi = tasi[nrow(tasi):1,]
+  sty = sty[nrow(sty):1,]
+  græn = græn[nrow(græn):1,]
   list(tasim=tasidf, tasi=tasi, sty=sty, græn=græn)
 }
