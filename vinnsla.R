@@ -17,9 +17,10 @@ dye3.monthly = dye3.res$monthly
 dye3.annual = dye3.res$annual
 renland = get_renland()
 
+
 # READ HAK-HVT TEMPERATURE PROXY
 lakes = get_lakes()
-lakes$tproxy = detrend(lakes$tproxy)
+#lakes$tproxy = detrend(lakes$tproxy)
 
 # PLOT MONTHLY AND ANNUAL MEANS
 source('plot_d18_t.R')  # To do: búa til tvö plott.
@@ -29,22 +30,25 @@ plot_annual(dye3.annual, tasi, græn, sty)
 # DETERMINE EDGES, I.E. END POINTS OF RESAMPLING INTERVALS
 debugSource('resampling.R')
 # debug_all()
-#obs.edges = resample(old_yr, bew_yr, 0.9, 1
+#obs.edges = resample(old_yr, new_yr, 0.9, 1
 
 # FUNCTION TO COMPUTE CORRELATION BETWEEN A PAIR OF TIME SERIES
 find_CI = function(df1, var1, df2, var2, alpha, n) {
   new_yr = min(df1$yr[1], df2$yr[1])
-  old_yr = max(tail(df1$yr, 1), tail(df2$yr, 1))
-  #old_yr = -3800
+  #old_yr = max(tail(df1$yr, 1), tail(df2$yr, 1))
+  old_yr = -3800
   edges = resample(old_yr, new_yr, alpha, n)
   resamp1 = apply_resampling(df1, edges, var1)
   resamp2 = apply_resampling(df2, edges, var2)
   common.res = common_time(resamp1, var1, resamp2, var2)
   time = 2000 - common.res$yr
+  #x = drop(detrend(common.res$x))
+  #y = drop(detrend(common.res$y))
   x = common.res$x
   y = common.res$y
-  CI = estimate_CI(time, x, y, alpha=0.01)
-  result = list(CI=CI, xy=common.res, interval = c(old_yr, new_yr))
+  CI = estimate_CI(time, x, y)
+  res = data.frame(time=time, x=x, y=y)
+  result = list(CI=CI, xy=res, interval = c(old_yr, new_yr))
 }
 
 pretty.print <- function(interval, alpha, M) {
@@ -78,7 +82,8 @@ compute.table <- function(icecore) {
     n = n.values[i]
     for (j in 1:N) {
       alpha = alpha.values[j]
-      CI.result = find_CI(icecore, 'd18', lakes, 'tproxy', alpha, n)
+      #CI.result = find_CI(icecore, 'd18', lakes, 'tproxy', alpha, n)
+      CI.result = find_CI(icecore, 'd18', renland, 'd18', alpha, n)
       sxy = CI.result$CI
       R[i,j] = sxy$r
       endpoints = CI.result$interval
@@ -98,8 +103,9 @@ compute.table <- function(icecore) {
 # str(s)
 # print(s$ci[2] - s$ci[1])
 # compute.table(dye3.annual)
-compute.table(renland)
-# CIxy = find_CI(dye3.annual, 'd18', lakes, 'tproxy', 0.8, 100)
+# compute.table(dye3.annual)
+# CIxy = find_CI(renland, 'd18', lakes, 'tproxy', 0.9, 500)
+CIxy = find_CI(renland, 'd18', dye3.annual, 'd18', 0.9, 500)
 CI = CIxy$CI
 xy = CIxy$xy
 str(CI)
