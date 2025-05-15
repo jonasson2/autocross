@@ -23,3 +23,6 @@ Author: Kristín Björg Ólafsdóttir [aut, cre],
   Manfred Mudelsee [aut],
   Michael Schulz [aut]
 Maintainer: Kristín Björg Ólafsdóttir <kbo@vedur.is>
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
