@@ -3,6 +3,8 @@ library(ggplot2)
 library(autocross)
 library(pracma)
 
+# All dataframes go backwards time and have a column yr
+
 # READ TEMPERATUE DATA
 debugSource('read_data.R')
 t.res = get_temperature()
@@ -17,6 +19,8 @@ dye3.monthly = dye3.res$monthly
 dye3.annual = dye3.res$annual
 renland = get_renland()
 
+# READ MARINE CORE DATA
+sst = get_sst()
 
 # READ HAK-HVT TEMPERATURE PROXY
 lakes = get_lakes()
@@ -28,7 +32,7 @@ plot_monthly(tasim, dye3.monthly)
 plot_annual(dye3.annual, tasi, græn, sty)
 
 # DETERMINE EDGES, I.E. END POINTS OF RESAMPLING INTERVALS
-debugSource('resampling.R')
+#debugSource('resampling.R')
 # debug_all()
 #obs.edges = resample(old_yr, new_yr, 0.9, 1
 
@@ -36,19 +40,20 @@ debugSource('resampling.R')
 find_CI = function(df1, var1, df2, var2, alpha, n) {
   new_yr = min(df1$yr[1], df2$yr[1])
   #old_yr = max(tail(df1$yr, 1), tail(df2$yr, 1))
-  old_yr = -3800
-  edges = resample(old_yr, new_yr, alpha, n)
-  resamp1 = apply_resampling(df1, edges, var1)
-  resamp2 = apply_resampling(df2, edges, var2)
+  ref_yr = 1979
+  max_age = 5779
+  edges = generate_resampling_edges(ref_yr, max_age, alpha, n)
+  resamp1 = apply_resampling(df1, var1, edges)
+  resamp2 = apply_resampling(df2, var2, edges)
   common.res = common_time(resamp1, var1, resamp2, var2)
   time = 2000 - common.res$yr
-  #x = drop(detrend(common.res$x))
-  #y = drop(detrend(common.res$y))
-  x = common.res$x
-  y = common.res$y
+  x = drop(detrend(common.res$x))
+  y = drop(detrend(common.res$y))
+  #x = common.res$x
+  #y = common.res$y
   CI = estimate_CI(time, x, y)
   res = data.frame(time=time, x=x, y=y)
-  result = list(CI=CI, xy=res, interval = c(old_yr, new_yr))
+  result = list(CI=CI, xy=res, max_age = max_age)
 }
 
 pretty.print <- function(interval, alpha, M) {
@@ -69,10 +74,10 @@ pretty.print <- function(interval, alpha, M) {
 #s = find_CI(sty, 't', dye3.annual, 'd18', alpha=1, n=10)
 #s = find_CI(sty, 't', dye3.annual, 'd18', alpha=1, n=10)
 
-compute.table <- function(icecore) {
+compute.table <- function(series1, var1, series2, var2) {
   cat("Computing tables for correlations")
-  alpha.values = seq(0.60, 1.00, 0.05)
-  n.values = c(10, 20, 30, 50, 100, 150, 200, 300, 400, 600, 800)
+  alpha.values = seq(0.60, 1.00, 0.1)
+  n.values = c(10, 20, 50, 100, 200, 400, 800)
   M = length(n.values)
   N = length(alpha.values)
   R = matrix(0, M, N)
@@ -82,16 +87,13 @@ compute.table <- function(icecore) {
     n = n.values[i]
     for (j in 1:N) {
       alpha = alpha.values[j]
-      #CI.result = find_CI(icecore, 'd18', lakes, 'tproxy', alpha, n)
-      CI.result = find_CI(icecore, 'd18', renland, 'd18', alpha, n)
+      CI.result = find_CI(series1, var1, series2, var2, alpha, n)
       sxy = CI.result$CI
       R[i,j] = sxy$r
-      endpoints = CI.result$interval
-      interval[i] = (endpoints[2] - endpoints[1])/n
+      interval[i] = CI.result$max_age/n
       ci.width[i,j] = sxy$ci[2] - sxy$ci[1]
     }
   }
-  print(endpoints)
   signif.indicator = ci.width/2/R
   cat('\nCORRELATIONS:\n')
   pretty.print(interval, alpha.values, R)
@@ -100,12 +102,10 @@ compute.table <- function(icecore) {
   cat('\nSIGNIFICANCE INDICATORS\n')
   pretty.print(interval, alpha.values, signif.indicator)
 }
-# str(s)
-# print(s$ci[2] - s$ci[1])
-# compute.table(dye3.annual)
-# compute.table(dye3.annual)
-# CIxy = find_CI(renland, 'd18', lakes, 'tproxy', 0.9, 500)
-CIxy = find_CI(renland, 'd18', dye3.annual, 'd18', 0.9, 500)
-CI = CIxy$CI
-xy = CIxy$xy
-str(CI)
+compute.table(dye3.annual, 'd18', lakes, 'tproxy')
+# compute.table(lakes, 'tproxy', sst, 'SST')
+# CIxy = find_CI(dye3.annual, 'd18', sst, 'SST', 0.8, 100)
+# CIxy = find_CI(renland, 'd18', dye3.annual, 'd18', 0.9, 10)
+# CI = CIxy$CI
+# xy = CIxy$xy
+# str(CI)

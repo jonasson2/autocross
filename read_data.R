@@ -36,12 +36,23 @@ get_dye3 = function() {
 
 get_lakes = function() {
   lakes <- read.table("lakes.txt",
-              header = TRUE,
-              sep = "\t",
-              row.names = NULL,
-              col.names = c("age", "tproxy"))
+                      header = TRUE,
+                      sep = "\t",
+                      row.names = NULL,
+                      col.names = c("age", "tproxy"))
   lakes$yr = 2000 - lakes$age
   lakes
+}
+
+get_sst <- function() {
+  ref_yr = 1950
+  sst <- read.table("sst-grimsey.txt",
+                    header    = TRUE,
+                    sep       = "\t",
+                    stringsAsFactors = FALSE)
+  sst <- sst[, c("yearBP", "SST")]
+  sst$yr = ref_yr - sst$yearBP
+  return(sst)
 }
 
 get_renland = function() {

@@ -1,3 +1,4 @@
+#' @export
 generate_resampling_edges = function(ref_yr, max_age, alpha, num_edges) {
   # Creates unevenly spaced edges with increasing spacing back in time as
   # controlled by an exponent alpha
@@ -6,8 +7,10 @@ generate_resampling_edges = function(ref_yr, max_age, alpha, num_edges) {
   #   ref_yr:    Reference year for age
   #   max_age:   Age used for the last edge
   #   alpha:     The spacing is proportional to age^(1/alpha)
+  cat('alpha:', alpha)
+  cat('max_age:', max_age)
   time_pts = max_age - seq(max_age^(1/alpha), 0, length.out = num_edges)^alpha
-  edges = ref_yr - time_pts
+  edges = ref_yr - round(time_pts)
   edges
 }
 
@@ -31,10 +34,13 @@ apply_resampling <- function(df, variables, edges) {
   
   newdf <- data.frame(yr = edges)
   n = length(edges)
-  tri = c(seq(1,4), 5, seq(4, 1))
+  w = c(3, 4, 5, 6, 6, 6, 6)
+  tri = c(head(w, 6), rev(w))
+  tri1 = rev(w)
+  trin = w
   tri = tri/sum(tri)
-  tri1 = seq(5, 1)/sum(seq(1, 5))
-  trin = seq(1, 5)/sum(seq(5, 1))
+  tri1 = tri1/sum(tri1)
+  trin = trin/sum(trin)
   for (v in variables) {
     newdf[[v]] <- NA
     for (i in 1:n) {

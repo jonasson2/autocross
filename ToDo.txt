@@ -37,3 +37,6 @@ Búum til einhvað sem líkist röðunum. Reiknum út mismunandi tímabil og té
 =======
 
 >>>>>>> a487bcc7243468bd3f36dbbeb072d8e0361e9c17
+
+
+Laga fylgniforritið svo það taki hámarkslengd sameiginlegt tímabils. Og teikna raðirnar.
