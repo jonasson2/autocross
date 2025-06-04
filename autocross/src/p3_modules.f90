@@ -46,8 +46,8 @@ module parameters
   use precision
   implicit none
   integer, parameter :: nmin=10      ! Minimum number of points
-  integer, parameter :: b1=100       ! Number of bootstrap simulations 1
-  integer, parameter :: b2=300      ! Number of bootstrap simulations 2	 
+  integer, parameter :: b1=500      ! Number of bootstrap simulations 1
+  integer, parameter :: b2=500      ! Number of bootstrap simulations 2	 
   real(dp) :: alpha=0.025_dp         ! Confidence level (1 - 2 * alpha)
   integer, parameter :: imax=10000   ! Big integer
   integer, parameter :: ntry=5       ! user input: maximum number of errors
@@ -463,8 +463,6 @@ contains
     call meanvar(r_resample1(1:b1),ave_se_1,var_se_1)
     se_r_resample1 = sqrt(var_se_1)  
     !
-    print*, '1st bootstrap loop finished '
-    !
     ! 2. Second bootstrap loop (Forms CI for each resample1)
     ! ========================================================
     !
@@ -474,9 +472,6 @@ contains
 
     !  
     boot:  do j=1,b1
-      If (j == 100) print*, '2nd bootstrap loop working...' 
-      If (mod(j,100) == 0) print*, '2nd bootstrap loop working...' ,j,'/',b1
-
       !
       !  2.2 2nd Bootstrap
       !  ================
@@ -545,9 +540,6 @@ contains
       !  2.5 End of big Bootstrap loop
       !  ============================
     end do boot
-
-      print *, 'bootstrap_time=', bootstrap_time
-      print *, 'pearsn_time', pearsn_time
     !  
     !
     ! 3. Determination of two-sides plambda

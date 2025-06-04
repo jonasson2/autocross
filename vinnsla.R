@@ -31,78 +31,119 @@ source('plot_d18_t.R')  # To do: búa til tvö plott.
 plot_monthly(tasim, dye3.monthly)
 plot_annual(dye3.annual, tasi, græn, sty)
 
-# DETERMINE EDGES, I.E. END POINTS OF RESAMPLING INTERVALS
-#debugSource('resampling.R')
-# debug_all()
-#obs.edges = resample(old_yr, new_yr, 0.9, 1
-
-# FUNCTION TO COMPUTE CORRELATION BETWEEN A PAIR OF TIME SERIES
-find_CI = function(df1, var1, df2, var2, alpha, n) {
-  new_yr = min(df1$yr[1], df2$yr[1])
-  #old_yr = max(tail(df1$yr, 1), tail(df2$yr, 1))
-  ref_yr = 1979
-  max_age = 5779
-  edges = generate_resampling_edges(ref_yr, max_age, alpha, n)
-  resamp1 = apply_resampling(df1, var1, edges)
-  resamp2 = apply_resampling(df2, var2, edges)
-  common.res = common_time(resamp1, var1, resamp2, var2)
-  time = 2000 - common.res$yr
-  x = drop(detrend(common.res$x))
-  y = drop(detrend(common.res$y))
-  #x = common.res$x
-  #y = common.res$y
-  CI = estimate_CI(time, x, y)
-  res = data.frame(time=time, x=x, y=y)
-  result = list(CI=CI, xy=res, max_age = max_age)
+pretty.print <- function(info, beta, M) {
+  # info : a list of length n, where each info[[i]] is a list with
+  #        elements $avg_int, $min_int, $max_int (all numeric).
+  # beta : numeric vector of length p
+  # M    : numeric matrix with n rows and p columns
+  
+  # 1) Extract and format the three interval‐fields from info[[i]]:
+  avg_vals <- sapply(info, `[[`, "avg_int")
+  min_vals <- sapply(info, `[[`, "min_int")
+  max_vals <- sapply(info, `[[`, "max_int")
+  
+  avg_labels <- formatC(avg_vals, format = "f", digits = 3)
+  min_labels <- formatC(min_vals, format = "f", digits = 3)
+  max_labels <- formatC(max_vals, format = "f", digits = 3)
+  
+  # 2) Format the matrix M exactly as before (fixed, 3 decimals) and reshape:
+  F_chr <- formatC(M, format = "f", digits = 3)
+  F_mat <- matrix(F_chr, nrow = nrow(M), ncol = ncol(M))
+  
+  # 3) Format the beta labels (header for the numeric columns):
+  beta_labels <- formatC(beta, format = "f", digits = 3)
+  
+  # 4) Figure out a uniform column width:
+  #    We need to consider the longest of:
+  #      - the literal column‐names "avg_int", "min_int", "max_int"
+  #      - the β‐labels
+  #      - the row‐labels (avg_labels, min_labels, max_labels)
+  #      - every entry of F_mat
+  all_text <- c(
+    "avg_int", "min_int", "max_int",
+    beta_labels,
+    avg_labels, min_labels, max_labels,
+    as.vector(F_mat)
+  )
+  col_width <- max(nchar(all_text)) + 2
+  
+  pad <- function(x) sprintf(paste0("%-", col_width, "s"), x)
+  
+  # 5) Print the header row:
+  cat(
+    pad("avg_int"),
+    pad("min_int"),
+    pad("max_int"),
+    paste(sapply(beta_labels, pad), collapse = ""),
+    "\n"
+  )
+  
+  # 6) Print a separator line of dashes:
+  total_cols <- 3 + length(beta_labels)
+  cat(rep("-", col_width * total_cols), sep = "", "\n")
+  
+  # 7) Print each data row:
+  for (i in seq_along(info)) {
+    cat(
+      pad(avg_labels[i]),
+      pad(min_labels[i]),
+      pad(max_labels[i]),
+      paste(sapply(F_mat[i, ], pad), collapse = ""),
+      "\n"
+    )
+  }
 }
 
-pretty.print <- function(interval, alpha, M) {
+pretty.print.1 <- function(interval, beta, M) {
   F <- formatC(M, format = "f", digits = 3)
   F <- matrix(F, nrow = nrow(M), ncol = ncol(M))
-  alpha_labels <- formatC(alpha, format = "f", digits = 3)
+  beta_labels <- formatC(beta, format = "f", digits = 3)
   interval_labels <- formatC(interval, format = "f", digits = 3)
-  col_width <- max(nchar(c("interval", alpha_labels, interval_labels, F))) + 2
+  col_width <- max(nchar(c("interval", beta_labels, interval_labels, F))) + 2
   pad <- function(x) sprintf(paste0("%-", col_width, "s"), x)
-  cat(pad("interval"), paste(sapply(alpha_labels, pad), collapse = ""), "\n")
-  total_cols <- 1 + length(alpha_labels)
+  cat(pad("interval"), paste(sapply(beta_labels, pad), collapse = ""), "\n")
+  total_cols <- 1 + length(beta_labels)
   cat(rep("-", col_width * total_cols), sep = "", "\n")
   for (i in seq_along(interval_labels)) {
     cat(pad(interval_labels[i]), paste(sapply(F[i, ], pad), collapse = ""), "\n")
   }
 }
 
-#s = find_CI(sty, 't', dye3.annual, 'd18', alpha=1, n=10)
-#s = find_CI(sty, 't', dye3.annual, 'd18', alpha=1, n=10)
+#s = find_CI(sty, 't', dye3.annual, 'd18', beta=1, n=10)
+#s = find_CI(sty, 't', dye3.annual, 'd18', beta=1, n=10)
 
-compute.table <- function(series1, var1, series2, var2) {
+compute.table <- function(series1, var1, series2, var2, n.values) {
   cat("Computing tables for correlations")
-  alpha.values = seq(0.60, 1.00, 0.1)
-  n.values = c(10, 20, 50, 100, 200, 400, 800)
+  beta.values = seq(1, 2, by=0.2)
   M = length(n.values)
-  N = length(alpha.values)
+  N = length(beta.values)
   R = matrix(0, M, N)
   ci.width = matrix(0, M, N)
-  interval = rep(0, M)
+  info = vector('list', M)
   for (i in 1:M) {
     n = n.values[i]
     for (j in 1:N) {
-      alpha = alpha.values[j]
-      CI.result = find_CI(series1, var1, series2, var2, alpha, n)
+      beta = beta.values[j]
+      CI.result = find_CI(series1, var1, series2, var2, beta, n)
       sxy = CI.result$CI
       R[i,j] = sxy$r
-      interval[i] = CI.result$max_age/n
       ci.width[i,j] = sxy$ci[2] - sxy$ci[1]
     }
+    info[[i]] = CI.result$info
   }
   signif.indicator = ci.width/2/R
   cat('\nCORRELATIONS:\n')
-  pretty.print(interval, alpha.values, R)
+  pretty.print(info, beta.values, R)
   cat('\nCONFIDENCE INTERVAL WIDHTS\n')
-  pretty.print(interval, alpha.values, ci.width)
+  pretty.print(info, beta.values, ci.width)
   cat('\nSIGNIFICANCE INDICATORS\n')
-  pretty.print(interval, alpha.values, signif.indicator)
+  pretty.print(info, beta.values, signif.indicator)
 }
-compute.table(dye3.annual, 'd18', lakes, 'tproxy')
+
+df = simulate_shifted(1000, 0.4, 10)
+n.values = c(20, 50, 100, 200, 400, 800)
+compute.table(df, 'x', df, 'y', n.values)
+# compute.table(dye3.annual, 'd18', lakes, 'tproxy', n.values)
 # compute.table(lakes, 'tproxy', sst, 'SST')
 # CIxy = find_CI(dye3.annual, 'd18', sst, 'SST', 0.8, 100)
 # CIxy = find_CI(renland, 'd18', dye3.annual, 'd18', 0.9, 10)

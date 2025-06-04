@@ -12,7 +12,6 @@
 #' @export
 estimate_CI <- function(time, x.series, y.series, alpha = 0.05) {
   n = length(time)
-  print(paste('n=', n))
   # Call the Fortran subroutine
   result <- .Fortran("p3_subroutine", n = n, time = time, x = x.series,
                      y = y.series, alpha = alpha,
