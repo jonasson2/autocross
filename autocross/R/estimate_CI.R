@@ -18,8 +18,9 @@ estimate_CI <- function(time, x.series, y.series, alpha = 0.05) {
   # Call the Fortran subroutine
   message("estimate_CI: calling Fortran subroutine p3_subroutine")
   flush.console()
-  result <- .Fortran("p3_subroutine", n = n, time = time, x = x.series,
-                     y = y.series, alpha = alpha,
+  result <- .Fortran("p3_subroutine", n = as.integer(n),
+                     time = as.double(time), x = as.double(x.series),
+                     y = as.double(y.series), alpha = as.double(alpha),
                      r = double(1), ci = double(2), taux = double(1),
                      tauy = double(1))
   message("estimate_CI: returned from Fortran subroutine")
