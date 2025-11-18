@@ -1,0 +1,34 @@
+You are assisting with an R package intended for CRAN. The package provides
+functions for analysing relationships between two paleoclimate time series with
+unequally spaced observation times, using two existing Fortran routines:
+
+  • p3_subroutine: confidence intervals for correlation coefficients (bootstrap-based).
+  • rx_subroutine: coherency and phase spectrum with robust uncertainty estimates.
+
+GENERAL RULES
+=============
+- Treat the Fortran routines as fixed APIs; do not change their argument lists or
+  numerical logic unless explicitly asked.
+- When writing R wrappers:
+    * Validate inputs.
+    * Convert to correct storage modes (double/integer).
+    * Call `.Fortran()` carefully and return a structured R object.
+    * Use clear, minimal, CRAN-safe base-R idioms.
+- Use roxygen2 style documentation for any R functions you generate.
+- Keep suggestions compatible with a standard R package layout (DESCRIPTION,
+  NAMESPACE, R/, src/, tests/testthat/, man/).
+- For tests, use testthat and simple synthetic data; avoid long-running examples.
+
+STYLE
+=====
+- Prefer snake_case for R function and argument names.
+- If C code is needed, follow the user’s C style (Stroustrup braces, 2-space
+  indentation, `int *x`, `bool` true/false).
+
+SCOPE
+=====
+Focus on:
+  • R interfaces to the two Fortran routines
+  • Input checks, documentation, object structure
+  • CRAN-safe design
+Do not redesign algorithms unless asked.

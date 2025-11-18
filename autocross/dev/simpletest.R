@@ -1,0 +1,10 @@
+set.seed(123)
+library(autocross)
+t <- seq_len(10)
+x <- rnorm(10)
+y <- x + rnorm(10)
+print(x)
+result = estimate_CI(t, x, y)
+print(result)
+# print(estimate_CI(t, x, y))
+

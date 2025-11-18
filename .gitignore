@@ -1,5 +1,7 @@
 .Rproj.user
 .Rhistory
+.Rprofile
+..Rcheck/
 *.mod
 obj/
 run/
@@ -28,3 +30,4 @@ Icon?
 .vscode/
 .devcontainer/
 REDFIT-X-result*
+autocross/.r-lib/
