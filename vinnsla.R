@@ -140,7 +140,7 @@ compute.table <- function(series1, var1, series2, var2, n.values) {
   pretty.print(info, beta.values, signif.indicator)
 }
 
-df = simulate_shifted(1000, 0.4, 10)
+df = simulate_shifted(500, 0.4, 5)
 n.values = c(20, 50, 100, 200, 400, 800)
 compute.table(df, 'x', df, 'y', n.values)
 # compute.table(dye3.annual, 'd18', lakes, 'tproxy', n.values)

@@ -56,7 +56,7 @@ simulate_bivar <- function(n,
   
   # simulate
   require(MASS)  # for mvrnorm
-  set.seed(42)
+  #set.seed(42)
   total <- n + burnin
   eps  <- mvrnorm(total, mu = c(0,0), Sigma = Sigma)
   X    <- matrix(0, nrow = total, ncol = 2)
@@ -80,8 +80,8 @@ generate_resampling_edges = function(ref_yr, max_age, beta, num_edges) {
   #   ref_yr:    Reference year for age
   #   max_age:   Age used for the last edge
   #   beta:      The spacing is proportional to age^(1/beta)
-  time_pts = seq(0, max_age^(1/beta), length.out = num_edges)^beta
-  edges = ref_yr - round(time_pts)
+  time_pts = c(0, cumsum(1 + seq(0, max_age^(1/beta), length.out=num_edges)^beta))
+  edges = ref_yr - time_pts
   edges
 }
 
@@ -135,7 +135,7 @@ apply_resampling <- function(df, variables, edges) {
         wgt = tri
       }
       xout = seq(e0, e1, length.out = nout)
-      yout = approx(x = df$yr, y = df[[v]], xout = xout)$y
+      yout = approx(x = df$yr, y = df[[v]], xout = xout, rule=2)$y
       newdf[i, v] <- sum(wgt*yout)  # triangle weighted average
     }
   }

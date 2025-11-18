@@ -31,7 +31,7 @@ triangle_average <- function(x, k) {
 #' triangle_resampling(2000:2010, df, c(2000, 2005, 2010), "value")
 triangle_resampling <- function(yr, df, edges, variable) {
   # a) interpolate the target variable over full year sequence
-  x <- approx(x = df$yr, y = df[[variable]], xout = yr)$y
+  x <- approx(x = df$yr, y = df[[variable]], xout = yr, rule=2)$y
   
   # b) compute edge indices within yr
   edgeidx <- edges - edges[1] + 1
