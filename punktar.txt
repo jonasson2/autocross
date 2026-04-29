@@ -1,0 +1,6 @@
+- Klára að ganga frá R-pakkanum
+- Búa til okkar gagnagrunn með dæmum, þ.á.m. sjávarhitagögnin
+- Keyra estimate_CI fyrir ársmeðaltöl í Grímsey, Reykjavík, Vestmanneyjum, Stykkishólmi o.fl.
+- Skoða árstíðaleiðleiðrétt mánaðarmeðaltöl
+- Ná í Hafró-gögn
+- Ná í hafstraumagögn og prófa þau.
