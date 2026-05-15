@@ -1,0 +1,17 @@
+STOD	NAFN
+1	Reykjavík
+178	Stykkishólmur
+248	Suðureyri
+290	Kjörvogur
+293	Litla-Ávík
+294	Grænhóll í Árneshreppi
+352	Hraun á Skaga
+404	Grímsey
+505	Raufarhöfn
+519	Þorvaldsstaðir
+533	Fagridalur
+620	Dalatangi
+675	Teigarhorn
+680	Papey
+815	Stórhöfði
+983	Grindavík
