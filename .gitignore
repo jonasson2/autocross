@@ -31,3 +31,10 @@ Icon?
 .devcontainer/
 REDFIT-X-result*
 autocross/.r-lib/
+
+# Local/generated files
+~$*
+.jupyter/
+.virtual_documents/
+__pycache__/
+*/fort.6
