@@ -90,3 +90,9 @@ Power: okkar sambærileg við PP og xDF
 Næst: Forrita Pyper-Peterman
 ná í XDf
 búa til simúleríngu
+
+Option B (historically faithful) Hvernig á að reikna n:
+
+Read the Pyper–Peterman paper carefully and implement exactly the estimator they recommend in their simulations.
+
+I would lean toward Option B if this is going into a paper, because reviewers familiar with the literature may ask:
