@@ -17,4 +17,58 @@
            xxx
            yyy
 
+Samtal við ChatGPT:
+A sensible benchmark suite would be:
 
+1. Naive Fisher z
+    * Ordinary cor.test().
+    * Assumes independence.
+    * Should badly undercover when autocorrelation is present.
+2. Pyper–Peterman (1998)
+    * Effective sample size.
+    * Very widely cited in ecology, fisheries, climatology.
+    * Probably the most important historical competitor.
+3. Chelton (1983)
+    * Another effective degrees-of-freedom correction.
+    * Still widely used in oceanography and climate science.
+    * Pyper & Peterman discuss it extensively.
+4. xDF (Afyouni et al., 2019)
+    * Modern correction.
+    * Explicitly incorporates lagged cross-correlation.
+    * More sophisticated than Pyper–Peterman.
+    * Worth including even though it came later.
+5. Moving-block bootstrap
+    * Generic nonparametric bootstrap benchmark.
+    * Many readers will immediately recognize it.
+6. Stationary bootstrap
+    * Particularly interesting because your 2014 paper is already bootstrap-based.
+    * Lets you compare calibration improvements separately from the resampling scheme.
+7. Parametric AR(1) bootstrap
+    * Fit AR(1) models to both series.
+    * Simulate.
+    * Obtain percentile or BCa intervals.
+    * Serves as a “model-based” competitor.
+
+If I were reviewing such a paper today, I’d expect to see at least:
+Another thing I would seriously consider is evaluating not only coverage but also interval length.
+
+For example, for AR(1) pairs with
+
+\phi = 0, 0.3, 0.6, 0.9,
+
+and
+
+\rho = 0, 0.3, 0.6, 0.9,
+
+you can report:
+
+* empirical coverage,
+* mean interval length,
+* lower-tail error,
+* upper-tail error.
+
+Many methods achieve nominal coverage by producing absurdly wide intervals.
+
+One competitor that may have escaped notice is the climate-statistics literature around Mudelsee’s work. There are several papers on correlation estimation under persistence that use modified effective sample sizes or block bootstraps, but in my reading they are mostly variations on Pyper–Peterman/Chelton rather than fundamentally new methods.
+
+Given your target audience, I would make Pyper–Peterman the primary historical comparator and xDF the primary modern comparator. Those are the two methods that a reader today is most likely to ask about.
