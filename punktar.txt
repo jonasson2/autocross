@@ -4,3 +4,17 @@
 - Skoða árstíðaleiðleiðrétt mánaðarmeðaltöl
 - Ná í Hafró-gögn
 - Ná í hafstraumagögn og prófa þau.
+
+2a: Skilgreina skipulag grunnsins:
+      examples
+        readme.txt
+        (skriftur)
+        sst
+           (skriftur)
+              readme.txt
+              data
+                 (gagnarskrár með sjávarhitagögnum)
+           xxx
+           yyy
+
+
