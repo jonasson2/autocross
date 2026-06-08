@@ -1,13 +1,13 @@
 STOD	NAFN	LAT	LON
-815	Stórhöfði	63.40	-20.29
-983	Grindavík	63.84	-22.42
+352	Hraun á Skaga	66.11	-20.10
+404	Grímsey	66.54	-18.01
+29y	Strandir	65.98	-21.35
+505	Raufarhöfn	66.45	-15.95
+248	Suðureyri	66.13	-23.53
+519	Þorvaldsstaðir	66.03	-14.98
+178	Stykkishólmur	65.07	-22.73
+675	Teigarhorn	64.68	-14.34
 1	Reykjavík	64.13	-21.91
 680	Papey	64.58	-14.17
-675	Teigarhorn	64.68	-14.34
-178	Stykkishólmur	65.07	-22.73
-29y	Strandir	65.98	-21.35
-519	Þorvaldsstaðir	66.03	-14.98
-352	Hraun á Skaga	66.11	-20.10
-248	Suðureyri	66.13	-23.53
-505	Raufarhöfn	66.45	-15.95
-404	Grímsey	66.54	-18.01
+983	Grindavík	63.84	-22.42
+815	Stórhöfði	63.40	-20.29

@@ -71,7 +71,7 @@ def expand_to_year_grid(
 
 
 def add_station_label(ax, name: str, xmax: int, ymin: int) -> None:
-    text = TextArea(name, textprops={"fontsize": 11, "fontweight": "bold"})
+    text = TextArea(name, textprops={"fontsize": 9, "fontweight": "bold"})
     label = AnnotationBbox(
         text,
         (xmax, ymin),
@@ -107,37 +107,50 @@ def main() -> int:
     fig, axes = plt.subplots(
         6,
         2,
-        figsize=(8.5, 11),
+        figsize=(17 / 2.54, 17 / 2.54),
         sharex=True,
-        sharey=True,
+        sharey=False,
         gridspec_kw={"wspace": 0, "hspace": 0},
     )
 
     xmin = 1865
     xmax = 2025
-    ymin = -1
-    ymax = 9
+    ylimits_by_station = {
+        "Hraun á Skaga": (-1, 7),
+        "Grímsey": (-1, 7),
+        "Strandir": (-1, 7),
+        "Raufarhöfn": (-1, 7),
+        "Suðureyri": (-1, 7),
+        "Þorvaldsstaðir": (-1, 7),
+        "Stykkishólmur": (0, 8),
+        "Teigarhorn": (0, 8),
+        "Reykjavík": (0, 8),
+        "Papey": (0, 8),
+        "Grindavík": (2, 9),
+        "Stórhöfði": (2, 9),
+    }
     xticks = list(range(1880, 2021, 20))
-    yticks = list(range(ymin, ymax + 1))
-    ytick_labels = [""] + [str(value) for value in range(0, ymax)] + [""]
 
     for index, ((station, name), ax) in enumerate(zip(stations, axes.flat)):
+        row = index // 2
+        col = index % 2
+        ymin, ymax = ylimits_by_station[name]
+        yticks = list(range(ymin, ymax + 1))
+
         data_path = args.data_dir / f"{name}.txt"
         years, sst, temp = read_station_data(data_path)
         years, sst, temp = expand_to_year_grid(years, sst, temp, xmin, xmax)
 
-        ax.plot(years, sst, color="blue", linewidth=2, label="SST")
-        ax.plot(years, temp, color="red", linewidth=2, label="T")
+        ax.plot(years, sst, color="blue", linewidth=1.5, label="SST")
+        ax.plot(years, temp, color="red", linewidth=1.5, label="T")
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(ymin, ymax)
         ax.set_xticks(xticks)
         ax.set_yticks(yticks)
-        ax.set_yticklabels(ytick_labels)
+        ax.set_yticklabels([""] + [str(value) for value in yticks[1:-1]] + [""])
         ax.grid(True, which="major", color="0.82", linewidth=0.7)
         add_station_label(ax, f"{name} ({display_station_code(station)})", xmax, ymin)
 
-        row = index // 2
-        col = index % 2
         ax.tick_params(
             bottom=False,
             left=False,
@@ -145,13 +158,11 @@ def main() -> int:
             right=False,
             labelbottom=row == 5,
             labelleft=col == 0,
+            labelsize=8,
+            pad=1.5,
         )
 
-        if index == 0:
-            ax.legend(loc="lower left", frameon=False, fontsize=9)
-
-    fig.supxlabel("Year", y=0.04)
-    fig.supylabel("Temperature (°C)", x=0.04)
+    fig.supylabel("Annual mean temperature (°C)")
     fig.subplots_adjust(left=0.08, right=0.99, bottom=0.09, top=0.99, wspace=0, hspace=0)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
