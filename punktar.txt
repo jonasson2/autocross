@@ -72,3 +72,21 @@ Many methods achieve nominal coverage by producing absurdly wide intervals.
 One competitor that may have escaped notice is the climate-statistics literature around Mudelsee’s work. There are several papers on correlation estimation under persistence that use modified effective sample sizes or block bootstraps, but in my reading they are mostly variations on Pyper–Peterman/Chelton rather than fundamentally new methods.
 
 Given your target audience, I would make Pyper–Peterman the primary historical comparator and xDF the primary modern comparator. Those are the two methods that a reader today is most likely to ask about.
+
+Report:
+
+                  Conf.breidd    Coverage    Type-I-error     Power     Nominal-coverage
+Fisher
+Pyper-Peterman
+xDF
+okkar
+
+Viljum sjá:
+Okkar conf-breidd breiðari en Fisher
+Coverage: okkar sem næst 0.95
+Type-I-error: okkar sem næst 0.05
+Power: okkar sambærileg við PP og xDF
+
+Næst: Forrita Pyper-Peterman
+ná í XDf
+búa til simúleríngu
