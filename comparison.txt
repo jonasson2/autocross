@@ -1,0 +1,39 @@
+We compare the current method with some/several "competitors" using the following measures:
+
+- Type-1-error
+- Power
+- Coverage
+- Interval length
+
+The comparison methods are:
+
+- Original Fishers (where the autocorrelation is simply ignored)
+- xDF
+- Pyper-Peterman
+- The new method
+
+For the computations we use simulation matching the 2014 article, namely two
+AR-1 processes with lag-1 autocorrelations a_x and a_y, and inter-series
+correlations of rho=0.3 and rho=0.8, as well as the independent case, rho=0.
+
+We define persistence times tau_x and tau_y with a_x = exp(-Delta t / tau_x)
+and  a_y = exp(-Delta t / tau_y).
+
+Gaps are introduced with:
+Initial spacings are generated as d_i ~ Gamma(16, 1), then normalized so that mean(d_i) = 1.
+
+  In R equivalent:
+
+  d <- rgamma(n - 1, shape = 16, scale = 1)
+  d <- d / mean(d)
+  t <- cumsum(c(1, d))
+
+[corresponds to spacing std of 0.5]. Also lengths tried are n ∈ {10, 20, 50, 100, 200}.
+
+Since PP and xDF cannot handle uneven timesteps the honest comparison is using
+d_i = 1 for all i. To apply uneven steps we could interpolate uneven series
+before feeding them to pp or xDF.
+
+TJ sagði m.a.: Sjávarhitaraðir í eyjunum (Grímsey, Papey og Vestmannaeyjum) sýna
+langtímasveiflur (áratuga-) betur en raðir inni í fjörðum. Kannski áhugavert að
+skoða hvort breytist á undan?

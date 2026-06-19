@@ -20,6 +20,7 @@ a.out
 *.gz
 *.ipynb_checkpoints
 *.pdf
+!t4-method.pdf
 pearsont3
 #autocross/NAMESPACE
 redfitx

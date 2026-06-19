@@ -46,12 +46,12 @@ module parameters
   use precision
   implicit none
   integer, parameter :: nmin=10      ! Minimum number of points
-  integer, parameter :: b1=500      ! Number of bootstrap simulations 1
-  integer, parameter :: b2=500      ! Number of bootstrap simulations 2	 
+  integer :: b1=500                 ! Number of bootstrap simulations 1
+  integer :: b2=500                 ! Number of bootstrap simulations 2
   real(dp) :: alpha=0.025_dp         ! Confidence level (1 - 2 * alpha)
   integer, parameter :: imax=10000   ! Big integer
   integer, parameter :: ntry=5       ! user input: maximum number of errors
-  integer, parameter :: n_lambda=500 ! Number of grid pts lambda (Calibrated CI)
+  integer :: n_lambda=500            ! Number of grid pts lambda (Calibrated CI)
   !                                  ! n_lambda = 500, gives:
   !                                  ! lambda = 0.001, 0.002,...,0.499, 0.500
   character(len=13), parameter :: &  !
@@ -62,36 +62,32 @@ end module parameters
 
 module inv_tlambda
   use precision
-  use parameters, only : n_lambda
   implicit none
   !  Inverse Student's t distribution over lambda range (2nd bootstrap loop)
-  real(dp), dimension(n_lambda) :: & ! percentage points of Student's t
-    t_inv_lambda=-999.0_dp           ! distribution with v-degrees of freedom
+  real(dp), allocatable, dimension(:) :: t_inv_lambda
+  ! percentage points of Student's t distribution with v-degrees of freedom
 end module inv_tlambda
 !
 !=============================================================================
 
 module resample_data
   use precision
-  use parameters, only: b1,b2,n_lambda
   implicit none
   !       Resampling data.
-  integer:: i_lambda
-  real(dp), dimension(b1) :: &
-    r_resample1=-999.0_dp       ! r_xy for resamples formed in loop1
-  real(dp), dimension(b2) :: &
-    r_resample2=-999.0_dp       ! r_xy for resamples formed in loop2
+  real(dp), allocatable, dimension(:) :: r_resample1
+  ! r_xy for resamples formed in loop1
+  real(dp), allocatable, dimension(:) :: r_resample2
+  ! r_xy for resamples formed in loop2
   real(dp):: se_r_resample1=-999.0_dp  ! standard error for r_resample1
-  real(dp),dimension(b1) :: se_r_resample2=-999.0_dp ! standard error for
+  real(dp), allocatable, dimension(:) :: se_r_resample2 ! standard error for
   ! r_resample2 (b1 times)
   real(dp), dimension(:,:) ,allocatable :: &
     r_low_resample1, r_upp_resample1
   ! b1 times lower/upper bound (r) for the resamples1 over grid of lambda
   ! Made allocateable to save compilation time and o-file size
   ! (will be allocated size (b1, n_lambda).
-  real(dp),dimension(n_lambda),parameter ::         &
-    lambda=(/ (0.5_dp*i_lambda/n_lambda, &
-    i_lambda=1,n_lambda) /)  ! lambda over grid of values from 0-0.5. how
+  real(dp), allocatable, dimension(:) :: lambda
+  ! lambda over grid of values from 0-0.5. how
   !                          ! tight the values are, is decided with n_lambda
 end module resample_data
 !
@@ -127,21 +123,121 @@ end module setting
 !=============================================================================
 !
 module pearsont3_module
+  use, intrinsic :: iso_c_binding, only: c_int32_t
+  use randompack
+  implicit none
+  type(randompack_rng) :: rp_rng
+  logical :: rp_rng_created = .false.
+  integer(c_int32_t), allocatable :: rp_starts(:)
+  integer(c_int32_t), allocatable :: rp_starts_y(:)
+  logical :: pearson_t4_null_calibration = .false.
+  integer :: pearson_t4_B1 = 1000
+  integer :: pearson_t4_B2 = 100
+  integer :: pearson_t4_B3 = 100
+  logical :: profile_detail_enabled = .false.
+  real :: profile_bootstrap_index = 0.0
+  real :: profile_bootstrap_copy = 0.0
+  real :: profile_pearsn_means = 0.0
+  real :: profile_pearsn_center = 0.0
+  real :: profile_pearsn_dots = 0.0
+  real :: profile_pearsn_finish = 0.0
 contains
-  subroutine allocate_resample_data
-    use setting
-    use resample_data
+  subroutine set_bootstrap_parameters(b1_in,b2_in,n_lambda_in)
+    use parameters, only: b1,b2,n_lambda
     implicit none
-    integer error
-    allocate(r_low_resample1(b1, n_lambda), r_upp_resample1(b1, n_lambda), &
+    integer, intent(in) :: b1_in,b2_in,n_lambda_in
+    if (b1_in < 1 .or. b2_in < 1 .or. n_lambda_in < 1) then
+      stop 'Invalid bootstrap parameters'
+    end if
+    b1 = b1_in
+    b2 = b2_in
+    n_lambda = n_lambda_in
+  end subroutine set_bootstrap_parameters
+
+  subroutine seed_randompack(seed)
+    implicit none
+    integer, intent(in) :: seed
+    integer(c_int32_t) :: seed32
+    if (.not. rp_rng_created) then
+      call rp_rng%create("x256++simd")
+      rp_rng_created = .true.
+    end if
+    seed32 = int(seed, c_int32_t)
+    call rp_rng%seed(seed32)
+  end subroutine seed_randompack
+
+  subroutine ensure_randompack_starts(n_start)
+    implicit none
+    integer, intent(in) :: n_start
+    if (allocated(rp_starts)) then
+      if (size(rp_starts) >= n_start) return
+      deallocate(rp_starts)
+    end if
+    allocate(rp_starts(n_start))
+  end subroutine ensure_randompack_starts
+
+  subroutine ensure_randompack_starts_y(n_start)
+    implicit none
+    integer, intent(in) :: n_start
+    if (allocated(rp_starts_y)) then
+      if (size(rp_starts_y) >= n_start) return
+      deallocate(rp_starts_y)
+    end if
+    allocate(rp_starts_y(n_start))
+  end subroutine ensure_randompack_starts_y
+
+  subroutine set_pearson_t4_null_calibration(enabled)
+    implicit none
+    logical, intent(in) :: enabled
+    pearson_t4_null_calibration = enabled
+  end subroutine set_pearson_t4_null_calibration
+
+  subroutine set_pearson_t4_calibration_parameters(B1_in,B2_in,B3_in)
+    implicit none
+    integer, intent(in) :: B1_in,B2_in,B3_in
+    if (B1_in < 1 .or. B2_in < 1 .or. B3_in < 1) then
+      stop 'Invalid PearsonT4 calibration parameters'
+    end if
+    pearson_t4_B1 = B1_in
+    pearson_t4_B2 = B2_in
+    pearson_t4_B3 = B3_in
+  end subroutine set_pearson_t4_calibration_parameters
+
+  subroutine allocate_resample_data
+    use resample_data
+    use inv_tlambda
+    use parameters, only: b1,b2,n_lambda
+    implicit none
+    integer :: error
+    integer :: i_lambda
+    call deallocate_resample_data
+    allocate(r_resample1(b1), r_resample2(b2), se_r_resample2(b1), &
+      r_low_resample1(b1, n_lambda), r_upp_resample1(b1, n_lambda), &
+      lambda(n_lambda), t_inv_lambda(n_lambda), &
       stat=error)
     if (error /= 0) stop 'Allocation failed'
+    r_resample1=-999.0_dp
+    r_resample2=-999.0_dp
+    se_r_resample2=-999.0_dp
+    r_low_resample1=-999.0_dp
+    r_upp_resample1=-999.0_dp
+    t_inv_lambda=-999.0_dp
+    do i_lambda=1,n_lambda
+      lambda(i_lambda)=0.5_dp*i_lambda/n_lambda
+    end do
   end subroutine allocate_resample_data
 
   subroutine deallocate_resample_data
     use resample_data
+    use inv_tlambda
     implicit none
-    deallocate(r_low_resample1, r_upp_resample1)
+    if (allocated(r_resample1)) deallocate(r_resample1)
+    if (allocated(r_resample2)) deallocate(r_resample2)
+    if (allocated(se_r_resample2)) deallocate(se_r_resample2)
+    if (allocated(r_low_resample1)) deallocate(r_low_resample1)
+    if (allocated(r_upp_resample1)) deallocate(r_upp_resample1)
+    if (allocated(lambda)) deallocate(lambda)
+    if (allocated(t_inv_lambda)) deallocate(t_inv_lambda)
   end subroutine deallocate_resample_data
   
   subroutine allocate0
@@ -184,7 +280,6 @@ contains
   !
   subroutine bootstrap(n,x,y,l,x_resample,y_resample)
     use precision
-    use random
     implicit none
     integer, intent(in) :: n          ! number of data points
     real(dp), dimension(:), intent(in)  :: x      ! original x time series
@@ -207,16 +302,29 @@ contains
     integer :: j=0
     integer :: k=0
     integer :: n_block_start
+    integer :: n_start
+    integer :: upper
+    real :: t_inner, t_finished
     n_block_start=n-l+1
+    if (l == 1) then
+      n_start = n
+      upper = n
+    else
+      n_start = (n + l - 1) / l
+      upper = n_block_start
+    end if
+    if (profile_detail_enabled) call cpu_time(t_inner)
+    call ensure_randompack_starts(n_start)
+    call rp_rng%int(rp_starts(1:n_start), 1, upper)
     if (l == 1) then         ! block length less or equal to average spacing,
       ! ordinary bootstrap is used
       do i=1,n
-        indxx(i)=int(n*uniform_random())+1
+        indxx(i)=int(rp_starts(i))
       end do
     else
       k=1            ! set counter
-      outer:     do i=1,n
-        indxx(k)=int(n_block_start*uniform_random())+1  ! draw random block start
+      outer:     do i=1,n_start
+        indxx(k)=int(rp_starts(i))  ! draw random block start
         k=k+1
         if (k > n) exit outer
         do j=1,l-1        ! fill up the block of length l
@@ -226,10 +334,283 @@ contains
         end do          ! the loop keeps on going until k>n or k==n
       end do outer
     end if
+    if (profile_detail_enabled) then
+      call cpu_time(t_finished)
+      profile_bootstrap_index = profile_bootstrap_index + t_finished - t_inner
+      call cpu_time(t_inner)
+    end if
     x_resample(:)=x(indxx(:))
     y_resample(:)=y(indxx(:))
+    if (profile_detail_enabled) then
+      call cpu_time(t_finished)
+      profile_bootstrap_copy = profile_bootstrap_copy + t_finished - t_inner
+    end if
     !
   end subroutine bootstrap
+
+  !============================================================================
+
+  subroutine bootstrap_independent(n,x,y,l,x_resample,y_resample)
+    use, intrinsic :: iso_c_binding, only: c_int32_t
+    use precision
+    implicit none
+    integer, intent(in) :: n
+    real(dp), dimension(:), intent(in) :: x,y
+    integer, intent(in) :: l
+    real(dp), dimension(:), intent(out) :: x_resample,y_resample
+    integer, dimension(n) :: indxx,indxy
+    integer :: i,j,k,n_block_start,n_start,upper
+
+    n_block_start=n-l+1
+    if (l == 1) then
+      n_start = n
+      upper = n
+    else
+      n_start = (n + l - 1) / l
+      upper = n_block_start
+    end if
+    call ensure_randompack_starts(n_start)
+    call ensure_randompack_starts_y(n_start)
+    call rp_rng%int(rp_starts(1:n_start), 1, upper)
+    call rp_rng%int(rp_starts_y(1:n_start), 1, upper)
+
+    if (l == 1) then
+      do i=1,n
+        indxx(i)=int(rp_starts(i))
+        indxy(i)=int(rp_starts_y(i))
+      end do
+    else
+      k=1
+      outer_x: do i=1,n_start
+        indxx(k)=int(rp_starts(i))
+        k=k+1
+        if (k > n) exit outer_x
+        do j=1,l-1
+          indxx(k)=indxx(k-1)+1
+          k=k+1
+          if (k > n) exit outer_x
+        end do
+      end do outer_x
+
+      k=1
+      outer_y: do i=1,n_start
+        indxy(k)=int(rp_starts_y(i))
+        k=k+1
+        if (k > n) exit outer_y
+        do j=1,l-1
+          indxy(k)=indxy(k-1)+1
+          k=k+1
+          if (k > n) exit outer_y
+        end do
+      end do outer_y
+    end if
+
+    x_resample(:)=x(indxx(:))
+    y_resample(:)=y(indxy(:))
+  end subroutine bootstrap_independent
+
+  !============================================================================
+
+  subroutine boot_fast(n2,b1,b2,n_lambda,l_mbb,flag_fisher,x3_resample1, &
+      y3_resample1,r_resample1,t_inv_lambda,se_r_resample2, &
+      r_low_resample1,r_upp_resample1)
+    use precision
+    use meanvar_module
+    implicit none
+    integer, intent(in) :: n2,b1,b2,n_lambda,l_mbb
+    character(len=*), intent(in) :: flag_fisher
+    real(dp), intent(in) :: x3_resample1(b1,n2),y3_resample1(b1,n2)
+    real(dp), intent(in) :: r_resample1(b1),t_inv_lambda(n_lambda)
+    real(dp), intent(out) :: se_r_resample2(b1)
+    real(dp), intent(out) :: r_low_resample1(b1,n_lambda)
+    real(dp), intent(out) :: r_upp_resample1(b1,n_lambda)
+    real(dp), allocatable :: r2(:)
+    real(dp) :: ave_se_2,var_se_2,se,z0
+    integer :: j,k,l,n_start,upper
+
+    allocate(r2(b2))
+    if (l_mbb == 1) then
+      n_start = n2
+      upper = n2
+    else
+      n_start = (n2 + l_mbb - 1)/l_mbb
+      upper = n2 - l_mbb + 1
+    end if
+    call ensure_randompack_starts(n_start)
+
+    do j=1,b1
+      do k=1,b2
+        call rp_rng%int(rp_starts(1:n_start),1,upper)
+        call bootstrap_corr_centered(n2,l_mbb,n_start,rp_starts(1:n_start), &
+          x3_resample1(j,1:n2),y3_resample1(j,1:n2),r2(k))
+      end do
+      if (flag_fisher == 'y') then
+        do k=1,b2
+          r2(k)=invtanh(r2(k))
+        end do
+      end if
+      call meanvar(r2(1:b2),ave_se_2,var_se_2)
+      se=sqrt(var_se_2)
+      se_r_resample2(j)=se
+      if (flag_fisher == 'y') then
+        z0=r_resample1(j)
+        do l=1,n_lambda
+          r_low_resample1(j,l)=tanh(z0 + t_inv_lambda(l)*se)
+          r_upp_resample1(j,l)=tanh(z0 - t_inv_lambda(l)*se)
+        end do
+      else
+        do l=1,n_lambda
+          r_low_resample1(j,l)=r_resample1(j) + t_inv_lambda(l)*se
+          r_upp_resample1(j,l)=r_resample1(j) - t_inv_lambda(l)*se
+        end do
+      end if
+    end do
+    deallocate(r2)
+  end subroutine boot_fast
+
+  subroutine bootstrap_corr_centered(n,l,n_start,starts,x,y,r)
+    use, intrinsic :: iso_c_binding, only: c_int32_t
+    use precision
+    implicit none
+    integer, intent(in) :: n,l,n_start
+    integer(c_int32_t), intent(in) :: starts(:)
+    real(dp), intent(in) :: x(:),y(:)
+    real(dp), intent(out) :: r
+    real(dp), parameter :: tiny=1.0e-08_dp
+    real(dp) :: ax,ay,sxx,syy,sxy,dx,dy
+    integer :: ib,a,m,left,ii
+
+    ax=0.0_dp
+    ay=0.0_dp
+    left=n
+    do ib=1,n_start
+      a=int(starts(ib))
+      m=min(l,left)
+      do ii=a,a+m-1
+        ax=ax+x(ii)
+        ay=ay+y(ii)
+      end do
+      left=left-m
+      if (left <= 0) exit
+    end do
+    ax=ax/n
+    ay=ay/n
+
+    sxx=0.0_dp
+    syy=0.0_dp
+    sxy=0.0_dp
+    left=n
+    do ib=1,n_start
+      a=int(starts(ib))
+      m=min(l,left)
+      do ii=a,a+m-1
+        dx=x(ii)-ax
+        dy=y(ii)-ay
+        sxx=sxx+dx*dx
+        syy=syy+dy*dy
+        sxy=sxy+dx*dy
+      end do
+      left=left-m
+      if (left <= 0) exit
+    end do
+    r=sxy/(sqrt(sxx*syy)+tiny)
+  end subroutine bootstrap_corr_centered
+
+  !============================================================================
+
+  subroutine pearson_t4_calibration(n,B1,B2,B3,n_lambda,l_mbb, &
+      flag_fisher,x,y,t_inv_lambda,pnull_low,pnull_upp,se_null)
+    use precision
+    use meanvar_module
+    implicit none
+    integer, intent(in) :: n,B1,B2,B3,n_lambda,l_mbb
+    character(len=*), intent(in) :: flag_fisher
+    real(dp), intent(in) :: x(:),y(:),t_inv_lambda(:)
+    real(dp), intent(out) :: pnull_low(:),pnull_upp(:)
+    real(dp), intent(out) :: se_null
+    real(dp), allocatable :: x_null(:),y_null(:),x1(:,:),y1(:,:)
+    real(dp), allocatable :: r1(:),r2(:),se1(:),r0(:),se0(:)
+    integer, allocatable :: count_low(:),count_upp(:)
+    real(dp) :: ave,var,se,z0
+    integer :: i0,j,k,l,n_start,upper,total
+
+    allocate(x_null(n),y_null(n),x1(B2,n),y1(B2,n), &
+      r1(B2),r2(B3),se1(B2),r0(B1),se0(B1), &
+      count_low(n_lambda),count_upp(n_lambda))
+    count_low = 0
+    count_upp = 0
+    if (l_mbb == 1) then
+      n_start = n
+      upper = n
+    else
+      n_start = (n + l_mbb - 1)/l_mbb
+      upper = n - l_mbb + 1
+    end if
+    call ensure_randompack_starts(n_start)
+
+    do i0=1,B1
+      call bootstrap_independent(n,x,y,l_mbb,x_null,y_null)
+      call pearsn(x_null,y_null,n,r0(i0))
+      if (flag_fisher == 'y') r0(i0)=invtanh(r0(i0))
+      do j=1,B2
+        call bootstrap(n,x_null,y_null,l_mbb,x1(j,1:n),y1(j,1:n))
+        call pearsn(x1(j,1:n),y1(j,1:n),n,r1(j))
+        if (flag_fisher == 'y') r1(j)=invtanh(r1(j))
+      end do
+
+      do j=1,B2
+        do k=1,B3
+          call rp_rng%int(rp_starts(1:n_start),1,upper)
+          call bootstrap_corr_centered(n,l_mbb,n_start,rp_starts(1:n_start), &
+            x1(j,1:n),y1(j,1:n),r2(k))
+        end do
+        if (flag_fisher == 'y') then
+          do k=1,B3
+            r2(k)=invtanh(r2(k))
+          end do
+        end if
+        call meanvar(r2(1:B3),ave,var)
+        se=sqrt(var)
+        se1(j)=se
+      end do
+
+      call meanvar(se1(1:B2),ave,var)
+      se0(i0)=ave
+    end do
+
+    call meanvar(se0(1:B1),ave,var)
+    se_null=ave
+
+    do i0=1,B1
+      if (flag_fisher == 'y') then
+        z0=r0(i0)
+        do l=1,n_lambda
+          if (tanh(z0 + t_inv_lambda(l)*se_null) .gt. 0.0_dp) then
+            count_low(l)=count_low(l)+1
+          end if
+          if (tanh(z0 - t_inv_lambda(l)*se_null) .lt. 0.0_dp) then
+            count_upp(l)=count_upp(l)+1
+          end if
+        end do
+      else
+        do l=1,n_lambda
+          if (r0(i0) + t_inv_lambda(l)*se_null .gt. 0.0_dp) then
+            count_low(l)=count_low(l)+1
+          end if
+          if (r0(i0) - t_inv_lambda(l)*se_null .lt. 0.0_dp) then
+            count_upp(l)=count_upp(l)+1
+          end if
+        end do
+      end if
+    end do
+
+    total = B1
+    do l=1,n_lambda
+      pnull_low(l)=1.0_dp*count_low(l)/total
+      pnull_upp(l)=1.0_dp*count_upp(l)/total
+    end do
+    deallocate(x_null,y_null,x1,y1,r1,r2,se1,r0,se0,count_low,count_upp)
+  end subroutine pearson_t4_calibration
 
   !============================================================================
 
@@ -372,6 +753,8 @@ contains
     real(dp), parameter :: half=0.5_dp
     real(dp), parameter :: one=1.0_dp
     real(dp), parameter :: two=2.0_dp
+    character(len=32) :: l_mbb_env
+    integer :: l_mbb_override, read_status
     !
     axy = sqrt(rhox3*rhoy3) !Eq 7.31 in (Mudelsee, 2010)
     !  
@@ -392,6 +775,13 @@ contains
       l_mbb = n2-1
       print'(a)','Note: block length longer than number of data points n '
       print'(a)','      PearsonT uses block lenght =  n -1.'
+    end if
+    call get_environment_variable("P3_L_MBB", l_mbb_env)
+    if (len_trim(l_mbb_env) > 0) then
+      read(l_mbb_env, *, iostat=read_status) l_mbb_override
+      if (read_status == 0) then
+        l_mbb = max(1, min(n2-1, l_mbb_override))
+      end if
     end if
     !
   end subroutine chsett4
@@ -422,14 +812,77 @@ contains
     real(dp) :: ave_se_2=-999.0_dp
     real(dp) :: var_se_2=-999.0_dp
     !  
-    real(dp),dimension(n_lambda)::plambda=-999.0_dp
+    real(dp),dimension(n_lambda)::plambda, plambda_low, plambda_upp, ptarget
+    real(dp),dimension(n_lambda)::pnull_low, pnull_upp
     real(dp):: alphatest=-999.0_dp        ! test alpha (1 - 2 * alpha)
     integer :: l_loc=0 ! gives the location of lambda value, within the lambda,
+    integer :: l_low_loc=0, l_upp_loc=0
     !                  ! which gives the coverage closest to 1-2*alpha  array
-    character(len=1),parameter::flag_fisher='y'    ! 'y' = Fisher's transform
+    character(len=1) :: flag_fisher='y'    ! 'y' = Fisher's transform
     !                ! 'n' = without Fisher's transform
 
-    real(dp) :: bootstrap_time, pearsn_time
+    logical :: profile, profile_detail, slow_bootstrap, no_calibration
+    logical :: split_tail_calibration, target_calibration
+    logical :: debug_calibration
+    character(len=32) :: profile_env, profile_detail_env, debug_env, slow_env, fisher_env
+    character(len=32) :: no_calibration_env, split_tail_env, zero_calibration_env
+    character(len=32) :: target_rho_env
+    integer :: target_status
+    real(dp) :: target_rho
+    real :: t_confidence, t_phase, t_inner, t_finished
+    real :: t_second_bootstrap_resample, t_second_bootstrap_pearsn
+    real :: t_second_bootstrap_transform, t_second_bootstrap_meanvar
+    real :: t_second_bootstrap_lambda
+    call get_environment_variable("P3_PROFILE", profile_env)
+    call get_environment_variable("P3_PROFILE_DETAIL", profile_detail_env)
+    call get_environment_variable("P3_DEBUG_CALIBRATION", debug_env)
+    call get_environment_variable("P3_BOOT_SLOW", slow_env)
+    call get_environment_variable("P3_NO_FISHER", fisher_env)
+    call get_environment_variable("P3_NO_CALIBRATION", no_calibration_env)
+    call get_environment_variable("P3_SPLIT_TAIL_CALIBRATION", split_tail_env)
+    call get_environment_variable("P3_ZERO_CALIBRATION", zero_calibration_env)
+    call get_environment_variable("P3_TARGET_RHO", target_rho_env)
+    profile = len_trim(profile_env) > 0
+    profile_detail = len_trim(profile_detail_env) > 0
+    debug_calibration = len_trim(debug_env) > 0
+    slow_bootstrap = len_trim(slow_env) > 0
+    no_calibration = len_trim(no_calibration_env) > 0
+    split_tail_calibration = len_trim(split_tail_env) > 0
+    target_calibration = .false.
+    target_rho = 0.0_dp
+    if (len_trim(zero_calibration_env) > 0) then
+      target_calibration = .true.
+    end if
+    if (len_trim(target_rho_env) > 0) then
+      read(target_rho_env, *, iostat=target_status) target_rho
+      if (target_status == 0) target_calibration = .true.
+    end if
+    if (len_trim(fisher_env) > 0) flag_fisher = 'n'
+    if (profile) call cpu_time(t_confidence)
+    if (profile) write(*,'("P3_PROFILE confidence.parameters: b1=",I0,", b2=",I0,", n_lambda=",I0,", n2=",I0,", l_mbb=",I0)') &
+      b1, b2, n_lambda, n2, l_mbb
+    if (profile .and. pearson_t4_null_calibration) then
+      write(*,'("P3_PROFILE confidence.t4_parameters: B1=",I0, &
+        ", B2=",I0,", B3=",I0)') pearson_t4_B1, pearson_t4_B2, pearson_t4_B3
+    end if
+    t_second_bootstrap_resample = 0.0
+    t_second_bootstrap_pearsn = 0.0
+    t_second_bootstrap_transform = 0.0
+    t_second_bootstrap_meanvar = 0.0
+    t_second_bootstrap_lambda = 0.0
+    plambda = -999.0_dp
+    plambda_low = -999.0_dp
+    plambda_upp = -999.0_dp
+    ptarget = -999.0_dp
+    pnull_low = -999.0_dp
+    pnull_upp = -999.0_dp
+    profile_detail_enabled = profile_detail
+    profile_bootstrap_index = 0.0
+    profile_bootstrap_copy = 0.0
+    profile_pearsn_means = 0.0
+    profile_pearsn_center = 0.0
+    profile_pearsn_dots = 0.0
+    profile_pearsn_finish = 0.0
     
     !
     !   1. First bootstrap loop (Student's t confidence interval)
@@ -440,28 +893,42 @@ contains
     !  Form bootstrap resamples x3_resample1 and y3_resample1 and store it
     !  Estimate Pearson's correlation coefficient, r_resample1 and store it
     !
-    do j=1,b1
-      call bootstrap(n2,x3,y3,l_mbb,x3_resample1(j,1:n2),y3_resample1(j,1:n2))
-      call pearsn(x3_resample1(j,1:n2),y3_resample1(j,1:n2),n2,r_resample1(j))
-    end do
-    !
-    !  1.2 Fisher's z-transformation
-    !  ============================
-    !  z-transform the r_resamples z=invtanh(r_resample1)
-    !
-    if (flag_fisher == 'y')then
+    if (.not. pearson_t4_null_calibration) then
+      if (profile) call cpu_time(t_phase)
       do j=1,b1
-        r_resample1(j)=invtanh(r_resample1(j))
+        call bootstrap(n2,x3,y3,l_mbb,x3_resample1(j,1:n2),y3_resample1(j,1:n2))
+        call pearsn(x3_resample1(j,1:n2),y3_resample1(j,1:n2),n2,r_resample1(j))
       end do
+      if (profile) call print_confidence_profile("first_bootstrap", t_phase)
+      !
+      !  1.2 Fisher's z-transformation
+      !  ============================
+      !  z-transform the r_resamples z=invtanh(r_resample1)
+      !
+      if (profile) call cpu_time(t_phase)
+      if (flag_fisher == 'y')then
+        do j=1,b1
+          r_resample1(j)=invtanh(r_resample1(j))
+        end do
 
+      end if
+      !
+      !  1.3 Bootstrap standard error
+      !  ===========================
+      !  Estimate the bootstrap se from all the replications
+      !  
+      call meanvar(r_resample1(1:b1),ave_se_1,var_se_1)
+      se_r_resample1 = sqrt(var_se_1)  
+      if (profile) call print_confidence_profile("first_transform_se", t_phase)
     end if
     !
-    !  1.3 Bootstrap standard error
-    !  ===========================
-    !  Estimate the bootstrap se from all the replications
-    !  
-    call meanvar(r_resample1(1:b1),ave_se_1,var_se_1)
-    se_r_resample1 = sqrt(var_se_1)  
+    if (pearson_t4_null_calibration) then
+      if (profile) call cpu_time(t_phase)
+      call pearson_t4_calibration(n2,pearson_t4_B1,pearson_t4_B2, &
+        pearson_t4_B3,n_lambda,l_mbb,flag_fisher,x3,y3,t_inv_lambda, &
+        pnull_low,pnull_upp,se_r_resample1)
+      if (profile) call print_confidence_profile("t4_null_calibration", t_phase)
+    else
     !
     ! 2. Second bootstrap loop (Forms CI for each resample1)
     ! ========================================================
@@ -471,85 +938,82 @@ contains
     !  Goes b1=2000 times through the 2nd bootstrap loop
 
     !  
-    boot:  do j=1,b1
-      !
-      !  2.2 2nd Bootstrap
-      !  ================
-      !  Forms bootstrap resamples x3_resample2 and y3_resample2 from the
-      !  resamples from bootstrap loop 1. Forms b1*b2 resamples2 (no need to
-      !  store them between loops). The block length is overtaken from the
-      !  original samples x3 and y3. Estimates Pearson's correlation coefficient
-      !  r_resample2 and stores it b2 times (just within this loop, not within
-      !  the big loop).
-      !
-      call tic()
-      bootstrap_time = 0
-      pearsn_time = 0
-      do k=1,b2
-        call bootstrap(n2,x3_resample1(j,1:n2),y3_resample1(j,1:n2),l_mbb, &
-          x3_resample2(1:n2),y3_resample2(1:n2))
-        bootstrap_time = bootstrap_time + toc()
-        call pearsn(x3_resample2(1:n2),y3_resample2(1:n2),n2,r_resample2(k))
-        pearsn_time = pearsn_time + toc()
-      end do
-      !
-      !  2.3 Fisher's z-transform
-      !  =======================
-      !
-      if (flag_fisher == 'y')then
+    if (profile) call cpu_time(t_phase)
+    if (slow_bootstrap) then
+      boot:  do j=1,b1
         do k=1,b2
-          r_resample2(k) = invtanh(r_resample2(k))
+          call bootstrap(n2,x3_resample1(j,1:n2),y3_resample1(j,1:n2),l_mbb, &
+            x3_resample2(1:n2),y3_resample2(1:n2))
+          call pearsn(x3_resample2(1:n2),y3_resample2(1:n2),n2,r_resample2(k))
         end do
-      end if
-      !
-      !  2.4 Confidence intervals for resamples 1
-      !  =======================================
-      !
-      !  2.4.1 Bootstrap standard error
-      !  =============================
-      !  Estimates the bootstrap standard error from the replications,
-      !  r_resample2. Results with b1 times se, one for each big loop or one for
-      !  each of the 2000 CI for resample1
-      !  
-      call meanvar(r_resample2(1:b2),ave_se_2,var_se_2)
-      se_r_resample2(j) = sqrt(var_se_2)    
-      !  
-      !
-      !  2.4.2 Student's t CI for each resample1 (b1 times r_upp and r_low)
-      !  =================================================================
-      !  r_upp and r_low estimated for each bootstrap resample1 (b1 times)
-      !  over a grid of confidence levels (lambda)
-      !  
-      if (flag_fisher == 'y')then
-        do l=1,n_lambda
-          r_low_resample1(j,l) = tanh(r_resample1(j) + &
-            t_inv_lambda(l)*se_r_resample2(j))
-          r_upp_resample1(j,l) = tanh(r_resample1(j) - &
-            t_inv_lambda(l)*se_r_resample2(j))
-        end do
-      else if (flag_fisher == 'n')then
-        do l=1,n_lambda
-          r_low_resample1(j,l) = r_resample1(j) + &
-            t_inv_lambda(l)*se_r_resample2(j)
-          r_upp_resample1(j,l) = r_resample1(j) - &
-            t_inv_lambda(l)*se_r_resample2(j)
-        end do
-      end if
-      !    
-      !
-      !  2.5 End of big Bootstrap loop
-      !  ============================
-    end do boot
+        if (flag_fisher == 'y') then
+          do k=1,b2
+            r_resample2(k) = invtanh(r_resample2(k))
+          end do
+        end if
+        call meanvar(r_resample2(1:b2),ave_se_2,var_se_2)
+        se_r_resample2(j) = sqrt(var_se_2)
+        if (flag_fisher == 'y') then
+          do l=1,n_lambda
+            r_low_resample1(j,l) = tanh(r_resample1(j) + &
+              t_inv_lambda(l)*se_r_resample2(j))
+            r_upp_resample1(j,l) = tanh(r_resample1(j) - &
+              t_inv_lambda(l)*se_r_resample2(j))
+          end do
+        else if (flag_fisher == 'n') then
+          do l=1,n_lambda
+            r_low_resample1(j,l) = r_resample1(j) + &
+              t_inv_lambda(l)*se_r_resample2(j)
+            r_upp_resample1(j,l) = r_resample1(j) - &
+              t_inv_lambda(l)*se_r_resample2(j)
+          end do
+        end if
+      end do boot
+    else
+      call boot_fast(n2,b1,b2,n_lambda,l_mbb,flag_fisher,x3_resample1, &
+        y3_resample1,r_resample1,t_inv_lambda,se_r_resample2, &
+        r_low_resample1,r_upp_resample1)
+    end if
+    if (profile) call print_confidence_profile("second_bootstrap", t_phase)
+    if (profile_detail) call print_profile_value("second_bootstrap.resample", &
+      t_second_bootstrap_resample)
+    if (profile_detail) call print_profile_value("second_bootstrap.pearsn", &
+      t_second_bootstrap_pearsn)
+    if (profile_detail) call print_profile_value("second_bootstrap.fisher_transform", &
+      t_second_bootstrap_transform)
+    if (profile_detail) call print_profile_value("second_bootstrap.meanvar", &
+      t_second_bootstrap_meanvar)
+    if (profile_detail) call print_profile_value("second_bootstrap.lambda_ci", &
+      t_second_bootstrap_lambda)
+    if (profile_detail) call print_profile_value("bootstrap.index", &
+      profile_bootstrap_index)
+    if (profile_detail) call print_profile_value("bootstrap.copy", &
+      profile_bootstrap_copy)
+    if (profile_detail) call print_profile_value("pearsn.means", &
+      profile_pearsn_means)
+    if (profile_detail) call print_profile_value("pearsn.second_pass", &
+      profile_pearsn_center)
+    if (profile_detail) call print_profile_value("pearsn.finish", &
+      profile_pearsn_finish)
+    end if
     !  
     !
     ! 3. Determination of two-sides plambda
     ! ====================================
     !   Equation 3.47 in Mudelsee(2010)
     !
-    do l = 1,n_lambda
-      plambda(l)= 1.0_dp *count(r .ge. r_low_resample1(1:b1,l) .and.  &
-        r .le. r_upp_resample1(1:b1,l))/b1
-    end do
+    if (profile) call cpu_time(t_phase)
+    if (.not. pearson_t4_null_calibration) then
+      do l = 1,n_lambda
+        plambda(l)= 1.0_dp *count(r .ge. r_low_resample1(1:b1,l) .and.  &
+          r .le. r_upp_resample1(1:b1,l))/b1
+        plambda_low(l)= 1.0_dp *count(r .lt. r_low_resample1(1:b1,l))/b1
+        plambda_upp(l)= 1.0_dp *count(r .gt. r_upp_resample1(1:b1,l))/b1
+        ptarget(l)= 1.0_dp *count(target_rho .ge. r_low_resample1(1:b1,l) .and.  &
+          target_rho .le. r_upp_resample1(1:b1,l))/b1
+      end do
+    end if
+    if (profile) call print_confidence_profile("plambda", t_phase)
     !  
     ! 4. Calibration - calibrated Student's t confidence interval
     ! ==========================================================
@@ -561,19 +1025,73 @@ contains
     !    
     alphatest=1.0_dp-(2.0_dp*alpha)
     !
-    l_loc = maxval(minloc(abs(alphatest-plambda(:))))
+    if (pearson_t4_null_calibration) then
+      l_low_loc = maxval(minloc(abs(alpha-pnull_low(:))))
+      l_upp_loc = maxval(minloc(abs(alpha-pnull_upp(:))))
+      l_loc = l_low_loc
+    else
+      l_loc = maxval(minloc(abs(alphatest-plambda(:))))
+      if (target_calibration) then
+        l_loc = maxval(minloc(abs(alphatest-ptarget(:))))
+      end if
+      if (no_calibration) then
+        l_loc = maxval(minloc(abs(alpha-lambda(:))))
+      end if
+      if (split_tail_calibration) then
+        l_low_loc = maxval(minloc(abs(alpha-plambda_low(:))))
+        l_upp_loc = maxval(minloc(abs(alpha-plambda_upp(:))))
+      else
+        l_low_loc = l_loc
+        l_upp_loc = l_loc
+      end if
+    end if
+    if (debug_calibration) then
+      if (pearson_t4_null_calibration) then
+        write(*,'("P4_DEBUG alpha=",F8.5," low_lambda=",F8.5, &
+          " upp_lambda=",F8.5," pnull_low=",F8.5," pnull_upp=",F8.5, &
+          " se1=",F10.5," r=",F10.5)') alpha, lambda(l_low_loc), &
+          lambda(l_upp_loc), pnull_low(l_low_loc), pnull_upp(l_upp_loc), &
+          se_r_resample1, r
+      else
+        write(*,'("P3_DEBUG alpha=",F8.5," alphatest=",F8.5," l_loc=",I0, &
+          " lambda=",F8.5," plambda=",F8.5," t_inv=",F10.5, &
+          " plow=",F8.5," pupp=",F8.5," ptarget=",F8.5, &
+          " target=",F10.5, &
+          " low_lambda=",F8.5," upp_lambda=",F8.5, &
+          " se1=",F10.5," r=",F10.5)') alpha, alphatest, l_loc, lambda(l_loc), &
+          plambda(l_loc), t_inv_lambda(l_loc), plambda_low(l_loc), &
+          plambda_upp(l_loc), ptarget(l_loc), target_rho, lambda(l_low_loc), &
+          lambda(l_upp_loc), se_r_resample1, r
+      end if
+    end if
     !
     !  4.2 Calculate calibrated Student's t CI
     !  ======================================
     !
-    if (flag_fisher == 'y')then    
-      r_low = tanh(invtanh(r) + t_inv_lambda(l_loc) * se_r_resample1)
-      r_upp = tanh(invtanh(r) - t_inv_lambda(l_loc) * se_r_resample1)  
+    if (flag_fisher == 'y')then	  
+      r_low = tanh(invtanh(r) + t_inv_lambda(l_low_loc) * se_r_resample1)
+      r_upp = tanh(invtanh(r) - t_inv_lambda(l_upp_loc) * se_r_resample1)
     else if (flag_fisher == 'n')then 
-      r_low = r + t_inv_lambda(l_loc) * se_r_resample1
-      r_upp = r - t_inv_lambda(l_loc) * se_r_resample1     
+      r_low = r + t_inv_lambda(l_low_loc) * se_r_resample1
+      r_upp = r - t_inv_lambda(l_upp_loc) * se_r_resample1
     end if
+    if (profile) call print_confidence_profile("confidence_total", t_confidence)
     !
+  contains
+    subroutine print_confidence_profile(name, started)
+      character(len=*), intent(in) :: name
+      real, intent(in) :: started
+      real :: finished
+      call cpu_time(finished)
+      write(*,'("P3_PROFILE confidence.",A,": ",F0.6," s")') &
+        trim(name), finished - started
+    end subroutine print_confidence_profile
+    subroutine print_profile_value(name, elapsed)
+      character(len=*), intent(in) :: name
+      real, intent(in) :: elapsed
+      write(*,'("P3_PROFILE confidence.",A,": ",F0.6," s")') &
+        trim(name), elapsed
+    end subroutine print_profile_value
   end subroutine confidence
   !
   !=============================================================================
@@ -1008,15 +1526,56 @@ contains
     real(dp), intent(out) :: r
     real(dp), parameter :: tiny=1.0e-08_dp
     real(dp), dimension(n) :: xt,yt
-    real(dp) :: ax,ay,sxx,sxy,syy
-    ax=sum(x)/n
-    ay=sum(y)/n
-    xt(:)=x(:)-ax
-    yt(:)=y(:)-ay
-    sxx=dot_product(xt,xt)
-    syy=dot_product(yt,yt)
-    sxy=dot_product(xt,yt)
+    real(dp) :: ax,ay,sxx,sxy,syy,dx,dy
+    real :: t_inner, t_finished
+    integer :: i
+    character(len=32) :: orig_pearsn_env
+    call get_environment_variable("P3_ORIG_PEARSN", orig_pearsn_env)
+    if (len_trim(orig_pearsn_env) > 0) then
+      ax=sum(x)/n
+      ay=sum(y)/n
+      xt(:)=x(:)-ax
+      yt(:)=y(:)-ay
+      sxx=dot_product(xt,xt)
+      syy=dot_product(yt,yt)
+      sxy=dot_product(xt,yt)
+      r=sxy/(sqrt(sxx*syy)+tiny)
+      return
+    end if
+    if (profile_detail_enabled) call cpu_time(t_inner)
+    ax = 0.0_dp
+    ay = 0.0_dp
+    do i = 1,n
+      ax = ax + x(i)
+      ay = ay + y(i)
+    end do
+    ax = ax/n
+    ay = ay/n
+    if (profile_detail_enabled) then
+      call cpu_time(t_finished)
+      profile_pearsn_means = profile_pearsn_means + t_finished - t_inner
+      call cpu_time(t_inner)
+    end if
+    sxx = 0.0_dp
+    syy = 0.0_dp
+    sxy = 0.0_dp
+    do i = 1,n
+      dx = x(i) - ax
+      dy = y(i) - ay
+      sxx = sxx + dx*dx
+      syy = syy + dy*dy
+      sxy = sxy + dx*dy
+    end do
+    if (profile_detail_enabled) then
+      call cpu_time(t_finished)
+      profile_pearsn_center = profile_pearsn_center + t_finished - t_inner
+      call cpu_time(t_inner)
+    end if
     r=sxy/(sqrt(sxx*syy)+tiny)
+    if (profile_detail_enabled) then
+      call cpu_time(t_finished)
+      profile_pearsn_finish = profile_pearsn_finish + t_finished - t_inner
+    end if
   end subroutine pearsn
   !
   !=============================================================================
