@@ -183,15 +183,6 @@ s_m^0
 \sum_{j=1}^{B_2} s_{mj}^0.
 $$
 
-It then summarizes the null-dataset standard errors into a single T4 scale,
-
-$$
-s_{T4}
-=
-\frac{1}{B_1}
-\sum_{m=1}^{B_1} s_m^0.
-$$
-
 Let
 
 $$
@@ -200,37 +191,33 @@ r_m^0=\operatorname{cor}(x_m^0,y_m^0),
 z_m^0=\operatorname{atanh}(r_m^0).
 $$
 
-For candidate lower and upper endpoint values \(\lambda_L\) and \(\lambda_U\),
-the null interval for dataset \(m\) is
+The null calibration uses the signed studentized null statistic
 
 $$
-\operatorname{CI}_m^0(\lambda_L,\lambda_U)
+T_m^0
 =
-\left[
-\tanh\left(z_m^0 + t(\lambda_L)s_{T4}\right),
-\tanh\left(z_m^0 - t(\lambda_U)s_{T4}\right)
-\right],
+\frac{z_m^0}{s_m^0}.
 $$
 
-where \(t(\lambda)\) is the Student-\(t\) quantile used by PearsonT. The two
-null tail error rates are estimated separately:
+Using PearsonT's \(\lambda\)-grid and \(t(\lambda)\) quantiles, PearsonT4
+estimates the two null tail error rates separately:
 
 $$
-\widehat{\alpha}_{L}(\lambda_L)
+\widehat{\alpha}_{L}(\lambda)
 =
 \frac{1}{B_1}
 \sum_{m=1}^{B_1}
-I\{L_m^0(\lambda_L)>0\},
+I\left\{T_m^0 > |t(\lambda)|\right\},
 $$
 
 and
 
 $$
-\widehat{\alpha}_{U}(\lambda_U)
+\widehat{\alpha}_{U}(\lambda)
 =
 \frac{1}{B_1}
 \sum_{m=1}^{B_1}
-I\{U_m^0(\lambda_U)<0\}.
+I\left\{T_m^0 < -|t(\lambda)|\right\}.
 $$
 
 For a 95 % two-sided confidence interval, PearsonT4 uses the one-tail level
@@ -239,36 +226,62 @@ $$
 \alpha = 0.025.
 $$
 
-It chooses \(\lambda_L\) and \(\lambda_U\) so that
+It chooses separate lower and upper cutoff values \(c_L\) and \(c_U\) so that
 
 $$
-\widehat{\alpha}_{L}(\lambda_L) \approx \alpha,
+\widehat{\alpha}_{L} \approx \alpha,
 \qquad
-\widehat{\alpha}_{U}(\lambda_U) \approx \alpha.
+\widehat{\alpha}_{U} \approx \alpha.
 $$
 
-The final T4 interval for the observed data is
+For the observed data, PearsonT4 estimates an observed Fisher-scale standard
+error \(s_{\mathrm{obs}}\) using the same nested bootstrap construction, with
+\(B_1\) first-level bootstrap samples and \(B_2\) second-level bootstrap samples.
+
+The final T4 interval uses these split-tail cutoffs on Fisher scale:
 
 $$
 \operatorname{CI}_{T4}
 =
 \left[
-\tanh\left(z + t(\lambda_L)s_{T4}\right),
-\tanh\left(z - t(\lambda_U)s_{T4}\right)
+\tanh\left(z - c_L s_{\mathrm{obs}}\right),
+\tanh\left(z + c_U s_{\mathrm{obs}}\right)
 \right].
 $$
 
-Thus the reported T4 interval uses the same null-path scale \(s_{T4}\) that was
-used to calibrate the null rejection probability. It does not use the observed-data
-T3 bootstrap standard error. Because \(\lambda_L\) and \(\lambda_U\) are chosen
-separately, the T4 interval need not be symmetric on Fisher scale.
+Equivalently, if \(c_L=|t(\lambda_L)|\) and \(c_U=|t(\lambda_U)|\), the
+implemented interval is
+
+$$
+\left[
+\tanh\left(z + t(\lambda_L)s_{\mathrm{obs}}\right),
+\tanh\left(z - t(\lambda_U)s_{\mathrm{obs}}\right)
+\right],
+$$
+
+because \(t(\lambda)<0\) for the relevant lower-tail grid values. This interval
+is the inversion of the split-tail calibrated null test:
+
+$$
+0\notin \operatorname{CI}_{T4}
+\quad\Longleftrightarrow\quad
+\frac{z}{s_{\mathrm{obs}}}>c_L
+\quad\text{or}\quad
+\frac{z}{s_{\mathrm{obs}}}<-c_U.
+$$
 
 ## Computational Cost
 
-The null-calibration part has cost approximately
+The observed-data scale estimate costs approximately
 
 $$
-B_1 B_2 B_3.
+B_1B_2.
+$$
+
+The null-calibration part costs approximately
+
+$$
+B_1B_2B_3.
 $$
 
 For example, with

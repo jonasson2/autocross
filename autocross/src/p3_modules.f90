@@ -518,27 +518,19 @@ contains
 
   !============================================================================
 
-  subroutine pearson_t4_calibration(n,B1,B2,B3,n_lambda,l_mbb, &
-      flag_fisher,x,y,t_inv_lambda,pnull_low,pnull_upp,se_null)
+  subroutine pearson_t4_nested_scale(n,B1,B2,l_mbb,flag_fisher,x,y,se_nested)
     use precision
     use meanvar_module
     implicit none
-    integer, intent(in) :: n,B1,B2,B3,n_lambda,l_mbb
+    integer, intent(in) :: n,B1,B2,l_mbb
     character(len=*), intent(in) :: flag_fisher
-    real(dp), intent(in) :: x(:),y(:),t_inv_lambda(:)
-    real(dp), intent(out) :: pnull_low(:),pnull_upp(:)
-    real(dp), intent(out) :: se_null
-    real(dp), allocatable :: x_null(:),y_null(:),x1(:,:),y1(:,:)
-    real(dp), allocatable :: r1(:),r2(:),se1(:),r0(:),se0(:)
-    integer, allocatable :: count_low(:),count_upp(:)
-    real(dp) :: ave,var,se,z0
-    integer :: i0,j,k,l,n_start,upper,total
+    real(dp), intent(in) :: x(:),y(:)
+    real(dp), intent(out) :: se_nested
+    real(dp), allocatable :: x1(:),y1(:),r2(:),se1(:)
+    real(dp) :: ave,var
+    integer :: j,k,n_start,upper
 
-    allocate(x_null(n),y_null(n),x1(B2,n),y1(B2,n), &
-      r1(B2),r2(B3),se1(B2),r0(B1),se0(B1), &
-      count_low(n_lambda),count_upp(n_lambda))
-    count_low = 0
-    count_upp = 0
+    allocate(x1(n),y1(n),r2(B2),se1(B1))
     if (l_mbb == 1) then
       n_start = n
       upper = n
@@ -548,68 +540,68 @@ contains
     end if
     call ensure_randompack_starts(n_start)
 
-    do i0=1,B1
-      call bootstrap_independent(n,x,y,l_mbb,x_null,y_null)
-      call pearsn(x_null,y_null,n,r0(i0))
-      if (flag_fisher == 'y') r0(i0)=invtanh(r0(i0))
-      do j=1,B2
-        call bootstrap(n,x_null,y_null,l_mbb,x1(j,1:n),y1(j,1:n))
-        call pearsn(x1(j,1:n),y1(j,1:n),n,r1(j))
-        if (flag_fisher == 'y') r1(j)=invtanh(r1(j))
+    do j=1,B1
+      call bootstrap(n,x,y,l_mbb,x1,y1)
+      do k=1,B2
+        call rp_rng%int(rp_starts(1:n_start),1,upper)
+        call bootstrap_corr_centered(n,l_mbb,n_start,rp_starts(1:n_start), &
+          x1,y1,r2(k))
       end do
-
-      do j=1,B2
-        do k=1,B3
-          call rp_rng%int(rp_starts(1:n_start),1,upper)
-          call bootstrap_corr_centered(n,l_mbb,n_start,rp_starts(1:n_start), &
-            x1(j,1:n),y1(j,1:n),r2(k))
-        end do
-        if (flag_fisher == 'y') then
-          do k=1,B3
-            r2(k)=invtanh(r2(k))
-          end do
-        end if
-        call meanvar(r2(1:B3),ave,var)
-        se=sqrt(var)
-        se1(j)=se
-      end do
-
-      call meanvar(se1(1:B2),ave,var)
-      se0(i0)=ave
-    end do
-
-    call meanvar(se0(1:B1),ave,var)
-    se_null=ave
-
-    do i0=1,B1
       if (flag_fisher == 'y') then
-        z0=r0(i0)
-        do l=1,n_lambda
-          if (tanh(z0 + t_inv_lambda(l)*se_null) .gt. 0.0_dp) then
-            count_low(l)=count_low(l)+1
-          end if
-          if (tanh(z0 - t_inv_lambda(l)*se_null) .lt. 0.0_dp) then
-            count_upp(l)=count_upp(l)+1
-          end if
-        end do
-      else
-        do l=1,n_lambda
-          if (r0(i0) + t_inv_lambda(l)*se_null .gt. 0.0_dp) then
-            count_low(l)=count_low(l)+1
-          end if
-          if (r0(i0) - t_inv_lambda(l)*se_null .lt. 0.0_dp) then
-            count_upp(l)=count_upp(l)+1
-          end if
+        do k=1,B2
+          r2(k)=invtanh(r2(k))
         end do
       end if
+      call meanvar(r2(1:B2),ave,var)
+      se1(j)=sqrt(var)
+    end do
+
+    call meanvar(se1(1:B1),ave,var)
+    se_nested=ave
+    deallocate(x1,y1,r2,se1)
+  end subroutine pearson_t4_nested_scale
+
+  !============================================================================
+
+  subroutine pearson_t4_calibration(n,B1,B2,B3,n_lambda,l_mbb, &
+      flag_fisher,x,y,t_inv_lambda,pnull_low,pnull_upp)
+    use precision
+    implicit none
+    integer, intent(in) :: n,B1,B2,B3,n_lambda,l_mbb
+    character(len=*), intent(in) :: flag_fisher
+    real(dp), intent(in) :: x(:),y(:),t_inv_lambda(:)
+    real(dp), intent(out) :: pnull_low(:),pnull_upp(:)
+    real(dp), allocatable :: x_null(:),y_null(:),t_null(:)
+    integer, allocatable :: count_low(:),count_upp(:)
+    real(dp) :: r0,z0,se0,tiny,tcrit
+    integer :: i0,l,total
+
+    tiny = 1.0e-12_dp
+    allocate(x_null(n),y_null(n),t_null(B1),count_low(n_lambda),count_upp(n_lambda))
+    count_low = 0
+    count_upp = 0
+
+    do i0=1,B1
+      call bootstrap_independent(n,x,y,l_mbb,x_null,y_null)
+      call pearsn(x_null,y_null,n,r0)
+      if (flag_fisher == 'y') then
+        z0=invtanh(r0)
+      else
+        z0=r0
+      end if
+      call pearson_t4_nested_scale(n,B2,B3,l_mbb,flag_fisher,x_null,y_null,se0)
+      t_null(i0)=z0/(se0 + tiny)
     end do
 
     total = B1
     do l=1,n_lambda
+      tcrit=abs(t_inv_lambda(l))
+      count_low(l)=count(t_null(1:B1) .gt. tcrit)
+      count_upp(l)=count(t_null(1:B1) .lt. -tcrit)
       pnull_low(l)=1.0_dp*count_low(l)/total
       pnull_upp(l)=1.0_dp*count_upp(l)/total
     end do
-    deallocate(x_null,y_null,x1,y1,r1,r2,se1,r0,se0,count_low,count_upp)
+    deallocate(x_null,y_null,t_null,count_low,count_upp)
   end subroutine pearson_t4_calibration
 
   !============================================================================
@@ -827,8 +819,9 @@ contains
     character(len=32) :: profile_env, profile_detail_env, debug_env, slow_env, fisher_env
     character(len=32) :: no_calibration_env, split_tail_env, zero_calibration_env
     character(len=32) :: target_rho_env
-    integer :: target_status
-    real(dp) :: target_rho
+    character(len=32) :: t4_scale_l_coef_env
+    integer :: target_status, scale_status
+    real(dp) :: target_rho, t4_scale_l_coef, ci_se
     real :: t_confidence, t_phase, t_inner, t_finished
     real :: t_second_bootstrap_resample, t_second_bootstrap_pearsn
     real :: t_second_bootstrap_transform, t_second_bootstrap_meanvar
@@ -842,6 +835,7 @@ contains
     call get_environment_variable("P3_SPLIT_TAIL_CALIBRATION", split_tail_env)
     call get_environment_variable("P3_ZERO_CALIBRATION", zero_calibration_env)
     call get_environment_variable("P3_TARGET_RHO", target_rho_env)
+    call get_environment_variable("P4_SCALE_L_COEF", t4_scale_l_coef_env)
     profile = len_trim(profile_env) > 0
     profile_detail = len_trim(profile_detail_env) > 0
     debug_calibration = len_trim(debug_env) > 0
@@ -850,6 +844,11 @@ contains
     split_tail_calibration = len_trim(split_tail_env) > 0
     target_calibration = .false.
     target_rho = 0.0_dp
+    t4_scale_l_coef = 0.0_dp
+    if (len_trim(t4_scale_l_coef_env) > 0) then
+      read(t4_scale_l_coef_env, *, iostat=scale_status) t4_scale_l_coef
+      if (scale_status /= 0) t4_scale_l_coef = 0.0_dp
+    end if
     if (len_trim(zero_calibration_env) > 0) then
       target_calibration = .true.
     end if
@@ -924,9 +923,11 @@ contains
     !
     if (pearson_t4_null_calibration) then
       if (profile) call cpu_time(t_phase)
+      call pearson_t4_nested_scale(n2,pearson_t4_B1,pearson_t4_B2, &
+        l_mbb,flag_fisher,x3,y3,se_r_resample1)
       call pearson_t4_calibration(n2,pearson_t4_B1,pearson_t4_B2, &
         pearson_t4_B3,n_lambda,l_mbb,flag_fisher,x3,y3,t_inv_lambda, &
-        pnull_low,pnull_upp,se_r_resample1)
+        pnull_low,pnull_upp)
       if (profile) call print_confidence_profile("t4_null_calibration", t_phase)
     else
     !
@@ -1068,12 +1069,16 @@ contains
     !  4.2 Calculate calibrated Student's t CI
     !  ======================================
     !
+    ci_se = se_r_resample1
+    if (pearson_t4_null_calibration .and. t4_scale_l_coef /= 0.0_dp) then
+      ci_se = ci_se * (1.0_dp + t4_scale_l_coef / l_mbb)
+    end if
     if (flag_fisher == 'y')then	  
-      r_low = tanh(invtanh(r) + t_inv_lambda(l_low_loc) * se_r_resample1)
-      r_upp = tanh(invtanh(r) - t_inv_lambda(l_upp_loc) * se_r_resample1)
+      r_low = tanh(invtanh(r) + t_inv_lambda(l_low_loc) * ci_se)
+      r_upp = tanh(invtanh(r) - t_inv_lambda(l_upp_loc) * ci_se)
     else if (flag_fisher == 'n')then 
-      r_low = r + t_inv_lambda(l_low_loc) * se_r_resample1
-      r_upp = r - t_inv_lambda(l_upp_loc) * se_r_resample1
+      r_low = r + t_inv_lambda(l_low_loc) * ci_se
+      r_upp = r - t_inv_lambda(l_upp_loc) * ci_se
     end if
     if (profile) call print_confidence_profile("confidence_total", t_confidence)
     !
