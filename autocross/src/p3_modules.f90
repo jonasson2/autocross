@@ -81,11 +81,6 @@ module resample_data
   real(dp):: se_r_resample1=-999.0_dp  ! standard error for r_resample1
   real(dp), allocatable, dimension(:) :: se_r_resample2 ! standard error for
   ! r_resample2 (b1 times)
-  real(dp), dimension(:,:) ,allocatable :: &
-    r_low_resample1, r_upp_resample1
-  ! b1 times lower/upper bound (r) for the resamples1 over grid of lambda
-  ! Made allocateable to save compilation time and o-file size
-  ! (will be allocated size (b1, n_lambda).
   real(dp), allocatable, dimension(:) :: lambda
   ! lambda over grid of values from 0-0.5. how
   !                          ! tight the values are, is decided with n_lambda
@@ -212,15 +207,12 @@ contains
     integer :: i_lambda
     call deallocate_resample_data
     allocate(r_resample1(b1), r_resample2(b2), se_r_resample2(b1), &
-      r_low_resample1(b1, n_lambda), r_upp_resample1(b1, n_lambda), &
       lambda(n_lambda), t_inv_lambda(n_lambda), &
       stat=error)
     if (error /= 0) stop 'Allocation failed'
     r_resample1=-999.0_dp
     r_resample2=-999.0_dp
     se_r_resample2=-999.0_dp
-    r_low_resample1=-999.0_dp
-    r_upp_resample1=-999.0_dp
     t_inv_lambda=-999.0_dp
     do i_lambda=1,n_lambda
       lambda(i_lambda)=0.5_dp*i_lambda/n_lambda
@@ -234,8 +226,6 @@ contains
     if (allocated(r_resample1)) deallocate(r_resample1)
     if (allocated(r_resample2)) deallocate(r_resample2)
     if (allocated(se_r_resample2)) deallocate(se_r_resample2)
-    if (allocated(r_low_resample1)) deallocate(r_low_resample1)
-    if (allocated(r_upp_resample1)) deallocate(r_upp_resample1)
     if (allocated(lambda)) deallocate(lambda)
     if (allocated(t_inv_lambda)) deallocate(t_inv_lambda)
   end subroutine deallocate_resample_data
@@ -411,22 +401,18 @@ contains
 
   !============================================================================
 
-  subroutine boot_fast(n2,b1,b2,n_lambda,l_mbb,flag_fisher,x3_resample1, &
-      y3_resample1,r_resample1,t_inv_lambda,se_r_resample2, &
-      r_low_resample1,r_upp_resample1)
+  subroutine boot_fast(n2,b1,b2,l_mbb,flag_fisher,x3_resample1, &
+      y3_resample1,se_r_resample2)
     use precision
     use meanvar_module
     implicit none
-    integer, intent(in) :: n2,b1,b2,n_lambda,l_mbb
+    integer, intent(in) :: n2,b1,b2,l_mbb
     character(len=*), intent(in) :: flag_fisher
     real(dp), intent(in) :: x3_resample1(b1,n2),y3_resample1(b1,n2)
-    real(dp), intent(in) :: r_resample1(b1),t_inv_lambda(n_lambda)
     real(dp), intent(out) :: se_r_resample2(b1)
-    real(dp), intent(out) :: r_low_resample1(b1,n_lambda)
-    real(dp), intent(out) :: r_upp_resample1(b1,n_lambda)
     real(dp), allocatable :: r2(:)
-    real(dp) :: ave_se_2,var_se_2,se,z0
-    integer :: j,k,l,n_start,upper
+    real(dp) :: ave_se_2,var_se_2
+    integer :: j,k,n_start,upper
 
     allocate(r2(b2))
     if (l_mbb == 1) then
@@ -450,20 +436,7 @@ contains
         end do
       end if
       call meanvar(r2(1:b2),ave_se_2,var_se_2)
-      se=sqrt(var_se_2)
-      se_r_resample2(j)=se
-      if (flag_fisher == 'y') then
-        z0=r_resample1(j)
-        do l=1,n_lambda
-          r_low_resample1(j,l)=tanh(z0 + t_inv_lambda(l)*se)
-          r_upp_resample1(j,l)=tanh(z0 - t_inv_lambda(l)*se)
-        end do
-      else
-        do l=1,n_lambda
-          r_low_resample1(j,l)=r_resample1(j) + t_inv_lambda(l)*se
-          r_upp_resample1(j,l)=r_resample1(j) - t_inv_lambda(l)*se
-        end do
-      end if
+      se_r_resample2(j)=sqrt(var_se_2)
     end do
     deallocate(r2)
   end subroutine boot_fast
@@ -798,6 +771,8 @@ contains
     integer :: j=0      ! for j=1,b1
     integer :: k=0      ! for k=1,b2
     integer :: l=0      ! for l=1,n_lambda
+    integer :: hits, below, above, target_hits
+    real(dp) :: lo, hi
     !  
     real(dp) :: ave_se_1=-999.0_dp
     real(dp) :: var_se_1=-999.0_dp
@@ -954,26 +929,10 @@ contains
         end if
         call meanvar(r_resample2(1:b2),ave_se_2,var_se_2)
         se_r_resample2(j) = sqrt(var_se_2)
-        if (flag_fisher == 'y') then
-          do l=1,n_lambda
-            r_low_resample1(j,l) = tanh(r_resample1(j) + &
-              t_inv_lambda(l)*se_r_resample2(j))
-            r_upp_resample1(j,l) = tanh(r_resample1(j) - &
-              t_inv_lambda(l)*se_r_resample2(j))
-          end do
-        else if (flag_fisher == 'n') then
-          do l=1,n_lambda
-            r_low_resample1(j,l) = r_resample1(j) + &
-              t_inv_lambda(l)*se_r_resample2(j)
-            r_upp_resample1(j,l) = r_resample1(j) - &
-              t_inv_lambda(l)*se_r_resample2(j)
-          end do
-        end if
       end do boot
     else
-      call boot_fast(n2,b1,b2,n_lambda,l_mbb,flag_fisher,x3_resample1, &
-        y3_resample1,r_resample1,t_inv_lambda,se_r_resample2, &
-        r_low_resample1,r_upp_resample1)
+      call boot_fast(n2,b1,b2,l_mbb,flag_fisher,x3_resample1, &
+        y3_resample1,se_r_resample2)
     end if
     if (profile) call print_confidence_profile("second_bootstrap", t_phase)
     if (profile_detail) call print_profile_value("second_bootstrap.resample", &
@@ -1005,13 +964,28 @@ contains
     !
     if (profile) call cpu_time(t_phase)
     if (.not. pearson_t4_null_calibration) then
+      ! Only coverage counts are needed; do not retain the b1-by-n_lambda endpoints.
       do l = 1,n_lambda
-        plambda(l)= 1.0_dp *count(r .ge. r_low_resample1(1:b1,l) .and.  &
-          r .le. r_upp_resample1(1:b1,l))/b1
-        plambda_low(l)= 1.0_dp *count(r .lt. r_low_resample1(1:b1,l))/b1
-        plambda_upp(l)= 1.0_dp *count(r .gt. r_upp_resample1(1:b1,l))/b1
-        ptarget(l)= 1.0_dp *count(target_rho .ge. r_low_resample1(1:b1,l) .and.  &
-          target_rho .le. r_upp_resample1(1:b1,l))/b1
+        hits = 0
+        below = 0
+        above = 0
+        target_hits = 0
+        do j = 1,b1
+          lo = r_resample1(j) + t_inv_lambda(l)*se_r_resample2(j)
+          hi = r_resample1(j) - t_inv_lambda(l)*se_r_resample2(j)
+          if (flag_fisher == 'y') then
+            lo = tanh(lo)
+            hi = tanh(hi)
+          end if
+          if (lo <= r .and. r <= hi) hits = hits + 1
+          if (r < lo) below = below + 1
+          if (r > hi) above = above + 1
+          if (lo <= target_rho .and. target_rho <= hi) target_hits = target_hits + 1
+        end do
+        plambda(l) = real(hits,dp)/b1
+        plambda_low(l) = real(below,dp)/b1
+        plambda_upp(l) = real(above,dp)/b1
+        ptarget(l) = real(target_hits,dp)/b1
       end do
     end if
     if (profile) call print_confidence_profile("plambda", t_phase)
