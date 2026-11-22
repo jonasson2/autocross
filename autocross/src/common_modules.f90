@@ -1399,7 +1399,49 @@ contains
     end if
   end subroutine minls
 
-  subroutine tauest_x(t_in, x_in, n, tau, rhoout)
+  subroutine refit_lag1(n,t,x,guess,q)
+    use precision
+    use newbrent_module, only: newbrent
+    implicit none
+    integer, intent(in) :: n
+    real(dp), intent(in) :: t(n), x(n), guess ! t in units of mean spacing
+    real(dp), intent(out) :: q
+    integer, parameter :: m=256
+    real(dp), parameter :: step=1.0_dp/m, tol=1.0e-10_dp
+    real(dp) :: s(0:m), best, v, candidate
+    integer :: i, j
+
+    do i=0,m
+      s(i)=lstau(i*step,t,x,n)
+    end do
+    j=minloc(s,dim=1)-1
+    q=j*step
+    best=s(j)
+    v=lstau(guess,t,x,n)
+    call consider(guess,v)
+    ! Refine every grid minimum and both edge cells (a short series can fit near zero).
+    do i=1,m-1
+      if (s(i)<=s(i-1) .and. s(i)<=s(i+1) .and. (s(i)<s(i-1) .or. s(i)<s(i+1))) then
+        v=newbrent(lstau,(i-1)*step,i*step,(i+1)*step,tol,candidate,t,x,n)
+        call consider(candidate,v)
+      end if
+    end do
+    do i=0,m-1,m-1
+      v=newbrent(lstau,i*step,(i+0.5_dp)*step,(i+1)*step,tol,candidate,t,x,n)
+      call consider(candidate,v)
+    end do
+  contains
+    subroutine consider(point,value)
+      real(dp), intent(in) :: point,value
+      if (value<best) then
+        best=value
+        q=point
+      end if
+    end subroutine consider
+  end subroutine refit_lag1
+
+  subroutine tauest_x(t_in, x_in, n, tau, rhoout, status)
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     use precision
     use meanvar_module
     implicit none
@@ -1407,8 +1449,8 @@ contains
     real(dp), dimension(:), intent(in) :: t_in  ! time
     real(dp), dimension(:), intent(in) :: x_in  ! time-series values
     real(dp), intent(out) :: tau    ! result: persistence time tau
-    real(dp), intent(out) :: rhoout ! result: equivalent autocorrelation
-    ! coefficient
+    real(dp), intent(out) :: rhoout ! result: equivalent autocorrelation coefficient
+    integer, optional, intent(out) :: status ! -1: failure; otherwise bits 0: boundary, 1: refit
     !
     !       Estimates AR(1) persistence time (tau) and
     !       equivalent autocorrelation coefficient (rho),using
@@ -1433,6 +1475,7 @@ contains
     integer :: i=-999
     real(dp) :: rho_max = 0.99_dp
     real(dp) :: rho_min = 0.01_dp
+    logical :: refit, boundary
     !
     ! 1.    Rename and change time direction
     !       ===============================
@@ -1443,7 +1486,15 @@ contains
     !
     ! 2.    Scaling (x)
     !       ==========
+    if (present(status)) then
+      status = -1
+      tau = 0.0_dp
+      rhoout = 0.0_dp
+    end if
     call meanvar(x,avex,varx)
+    if (present(status)) then
+      if (.not. ieee_is_finite(varx) .or. varx <= 0.0_dp) return
+    end if
     x=x/sqrt(varx)
     !
     ! 3.    Scaling (t)
@@ -1459,6 +1510,10 @@ contains
     end if
     scalt=-1.0_dp*log(rho)/delta    ! scaling factor
     t=t*scalt        ! t-scaled: t*(-log(a)/delta)
+    if (present(status)) then
+      if (.not. all(ieee_is_finite(t)) .or. .not. all(ieee_is_finite(x))) return
+      if (any(t(2:n) <= t(1:n-1))) return
+    end if
     !
     ! 4.    Estimation (tau)
     !       ===============
@@ -1467,13 +1522,26 @@ contains
     !brent - Brent's search - minimum ls value
     !
     call minls(n,t,x,amin,mult)
+    if (present(status)) then
+      if (.not. ieee_is_finite(amin)) return
+    end if
+    refit = mult == 1 .and. amin > 0.0_dp .and. amin < 1.0_dp
+    if (refit) then
+      call refit_lag1(n,(t-t(1))/(scalt*delta),x,exp(scalt*delta*log(amin)),rho_non)
+      boundary = rho_non <= 0.0_dp .or. rho_non >= 1.0_dp
+    else
+      boundary = amin <= 0.0_dp .or. amin >= 1.0_dp
+    end if
     !
     ! 5. Result ! checked if amin (the value for a) is equal or less than zero,
     !    ====== ! or if it is equal or bigger than 1.0. That can cause
     !           ! problems in the estimation
     !
-    if (mult == 1 .or. amin <= 0.0_dp .or. amin >= 1.0_dp) then
-      if (amin <= 0.0_dp) then
+    if (boundary) then
+      if (refit) then
+        rho_non=merge(rho_min,rho_max,rho_non<=0.0_dp)
+        tau=-delta/log(rho_non)
+      else if (amin <= 0.0_dp) then
         rho_non=rho_min
         tau=-delta/log(rho_min)
       else if (amin >= 1.0_dp) then
@@ -1481,10 +1549,12 @@ contains
         tau=-delta/log(rho_max)
       end if
     else
-      tau = -1.0_dp/(scalt*log(amin))    ! tau - rescaled, without bias
-      ! correction tau=-1/log(a)
-      rho_non = exp(-delta/tau)      ! equivalent autocorrelation coefficient
-      ! for tau, used in the bias correction
+      if (refit) then
+        tau = -delta/log(rho_non)
+      else
+        tau = -1.0_dp/(scalt*log(amin))
+        rho_non = exp(-delta/tau)
+      end if
 
       ! Bias correction(unknown mean) for rho (Kendall, 1954) Solved equation
       ! (this equation: a_est =a_est_bc+(1.0_dp + 3.0_dp * a_est_bc)/(n-1)
@@ -1508,6 +1578,13 @@ contains
     end if
 
     rhoout = rho_non
+    if (present(status)) then
+      if (.not. ieee_is_finite(tau) .or. .not. ieee_is_finite(rhoout)) return
+      if (tau <= 0.0_dp .or. rhoout < 0.0_dp .or. rhoout >= 1.0_dp) return
+      status = 0
+      if (boundary) status = 1
+      if (refit) status = status + 2
+    end if
     !
   end subroutine tauest_x
 

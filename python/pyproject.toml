@@ -1,0 +1,14 @@
+[build-system]
+requires = ["meson-python", "Cython>=3", "numpy"]
+build-backend = "mesonpy"
+
+[project]
+name = "autocross"
+version = "0.1.0.dev0"
+description = "Simulation and correlation inference for autocorrelated time series"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy", "randompack>=0.1.10", "varmapack>=0.2.0"]
+
+[project.optional-dependencies]
+test = ["pytest"]

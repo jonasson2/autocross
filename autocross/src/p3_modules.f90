@@ -118,13 +118,23 @@ end module setting
 !=============================================================================
 !
 module pearsont3_module
-  use, intrinsic :: iso_c_binding, only: c_int32_t
+  use, intrinsic :: iso_c_binding, only: c_int, c_int32_t, c_ptr, c_null_ptr
+  use, intrinsic :: iso_fortran_env, only: int64
+  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+  use precision
   use randompack
   implicit none
   type(randompack_rng) :: rp_rng
   logical :: rp_rng_created = .false.
   integer(c_int32_t), allocatable :: rp_starts(:)
   integer(c_int32_t), allocatable :: rp_starts_y(:)
+  integer(c_int32_t), allocatable :: rp_flags(:)
+  integer(c_int32_t), allocatable :: rp_flags_y(:)
+  logical :: polrom_bootstrap = .false.
+  logical :: time_block_bootstrap = .false.
+  logical :: balanced_block_bootstrap = .false.
+  logical :: random_length_bootstrap = .false.
+  real(dp) :: random_block_beta = 0.8_dp
   logical :: pearson_t4_null_calibration = .false.
   integer :: pearson_t4_B1 = 1000
   integer :: pearson_t4_B2 = 100
@@ -136,7 +146,29 @@ module pearsont3_module
   real :: profile_pearsn_center = 0.0
   real :: profile_pearsn_dots = 0.0
   real :: profile_pearsn_finish = 0.0
+  logical :: api_call = .false.
+  integer :: api_status = 0
+  integer(int64) :: api_degenerate = 0
+  type(c_ptr) :: api_rng_context = c_null_ptr
+  abstract interface
+    integer(c_int) function draw_integers(context, n, upper, values) bind(C)
+      import c_ptr, c_int, c_int32_t
+      type(c_ptr), value :: context
+      integer(c_int), value :: n, upper
+      integer(c_int32_t), intent(out) :: values(n)
+    end function draw_integers
+  end interface
+  procedure(draw_integers), pointer :: api_draw => null()
 contains
+  subroutine draw_block_starts(n, upper)
+    integer, intent(in) :: n, upper
+    if (api_call) then
+      if (api_draw(api_rng_context, n, upper, rp_starts(1:n)) /= 0) api_status = 4
+    else
+      call rp_rng%int(rp_starts(1:n), 1, upper)
+    end if
+  end subroutine draw_block_starts
+
   subroutine set_bootstrap_parameters(b1_in,b2_in,n_lambda_in)
     use parameters, only: b1,b2,n_lambda
     implicit none
@@ -181,6 +213,261 @@ contains
     allocate(rp_starts_y(n_start))
   end subroutine ensure_randompack_starts_y
 
+  subroutine ensure_randompack_flags(n_start)
+    implicit none
+    integer, intent(in) :: n_start
+    if (allocated(rp_flags)) then
+      if (size(rp_flags) >= n_start) return
+      deallocate(rp_flags)
+    end if
+    allocate(rp_flags(n_start))
+  end subroutine ensure_randompack_flags
+
+  subroutine ensure_randompack_flags_y(n_start)
+    implicit none
+    integer, intent(in) :: n_start
+    if (allocated(rp_flags_y)) then
+      if (size(rp_flags_y) >= n_start) return
+      deallocate(rp_flags_y)
+    end if
+    allocate(rp_flags_y(n_start))
+  end subroutine ensure_randompack_flags_y
+
+  subroutine set_polrom_bootstrap(enabled)
+    implicit none
+    logical, intent(in) :: enabled
+    polrom_bootstrap = enabled
+  end subroutine set_polrom_bootstrap
+
+  subroutine set_time_block_bootstrap(enabled)
+    implicit none
+    logical, intent(in) :: enabled
+    time_block_bootstrap = enabled
+  end subroutine set_time_block_bootstrap
+
+  integer function balanced_block_count(n,l)
+    implicit none
+    integer, intent(in) :: n,l
+    if (l <= 1) then
+      balanced_block_count = n
+    else
+      balanced_block_count = max(1,nint(real(n)/real(l)))
+    end if
+  end function balanced_block_count
+
+  integer function balanced_block_length(n,n_start,ib)
+    implicit none
+    integer, intent(in) :: n,n_start,ib
+    integer :: q,r
+    q = n/n_start
+    r = n - n_start*q
+    if (ib <= r) then
+      balanced_block_length = q + 1
+    else
+      balanced_block_length = q
+    end if
+  end function balanced_block_length
+
+  subroutine balanced_block_lengths(n,n_start,lengths)
+    implicit none
+    integer, intent(in) :: n,n_start
+    integer, intent(out) :: lengths(:)
+    integer :: ib
+    do ib=1,n_start
+      lengths(ib) = balanced_block_length(n,n_start,ib)
+    end do
+  end subroutine balanced_block_lengths
+
+  subroutine random_block_lengths(n,l,beta,n_start,lengths)
+    use, intrinsic :: iso_c_binding, only: c_int32_t
+    implicit none
+    integer, intent(in) :: n,l,n_start
+    real(dp), intent(in) :: beta
+    integer, intent(out) :: lengths(:)
+    integer(c_int32_t) :: draws(n_start)
+    integer :: ib,lo,hi,d,q,r
+
+    lo = max(1,nint(real(l,dp)*beta))
+    hi = max(lo,nint(real(l,dp)/beta))
+    call rp_rng%int(draws,lo,hi)
+    do ib=1,n_start
+      lengths(ib)=int(draws(ib))
+    end do
+
+    d = n - sum(lengths(1:n_start))
+    q = floor(real(d,dp)/real(n_start,dp))
+    r = d - q*n_start
+    do ib=1,n_start
+      lengths(ib)=lengths(ib)+q
+      if (ib <= r) lengths(ib)=lengths(ib)+1
+    end do
+
+    if (minval(lengths(1:n_start)) < 1) then
+      call balanced_block_lengths(n,n_start,lengths)
+    end if
+  end subroutine random_block_lengths
+
+  subroutine random_balanced_starts(n,n_start,starts)
+    use, intrinsic :: iso_c_binding, only: c_int32_t
+    implicit none
+    integer, intent(in) :: n,n_start
+    integer(c_int32_t), intent(out) :: starts(:)
+    integer :: ib,li,upper
+    do ib=1,n_start
+      li = balanced_block_length(n,n_start,ib)
+      upper = max(1,n-li+1)
+      call rp_rng%int(starts(ib:ib),1,upper)
+    end do
+  end subroutine random_balanced_starts
+
+  subroutine random_starts_for_lengths(n,n_start,lengths,starts)
+    use, intrinsic :: iso_c_binding, only: c_int32_t
+    implicit none
+    integer, intent(in) :: n,n_start
+    integer, intent(in) :: lengths(:)
+    integer(c_int32_t), intent(out) :: starts(:)
+    integer :: ib,upper
+    do ib=1,n_start
+      upper = max(1,n-lengths(ib)+1)
+      call rp_rng%int(starts(ib:ib),1,upper)
+    end do
+  end subroutine random_starts_for_lengths
+
+  subroutine balanced_indices(n,n_start,starts,indices)
+    use, intrinsic :: iso_c_binding, only: c_int32_t
+    implicit none
+    integer, intent(in) :: n,n_start
+    integer(c_int32_t), intent(in) :: starts(:)
+    integer, intent(out) :: indices(:)
+    integer :: ib,a,li,ii,k
+    k = 1
+    do ib=1,n_start
+      a = int(starts(ib))
+      li = balanced_block_length(n,n_start,ib)
+      do ii=a,a+li-1
+        indices(k) = ii
+        k = k + 1
+        if (k > n) exit
+      end do
+      if (k > n) exit
+    end do
+  end subroutine balanced_indices
+
+  subroutine length_indices(n,n_start,lengths,starts,indices)
+    use, intrinsic :: iso_c_binding, only: c_int32_t
+    implicit none
+    integer, intent(in) :: n,n_start
+    integer, intent(in) :: lengths(:)
+    integer(c_int32_t), intent(in) :: starts(:)
+    integer, intent(out) :: indices(:)
+    integer :: ib,a,li,ii,k
+    k = 1
+    do ib=1,n_start
+      a = int(starts(ib))
+      li = lengths(ib)
+      do ii=a,a+li-1
+        indices(k) = ii
+        k = k + 1
+        if (k > n) exit
+      end do
+      if (k > n) exit
+    end do
+  end subroutine length_indices
+
+  integer function time_block_count(n,l)
+    implicit none
+    integer, intent(in) :: n,l
+    if (l <= 1) then
+      time_block_count = n
+    else
+      time_block_count = max(1,(n + l - 1)/l)
+    end if
+  end function time_block_count
+
+  real(dp) function time_block_duration(n,l)
+    use precision
+    use data2, only: t2
+    implicit none
+    integer, intent(in) :: n,l
+    time_block_duration = (t2(n) - t2(1))/real(time_block_count(n,l),dp)
+  end function time_block_duration
+
+  integer function time_block_upper(n,l)
+    use precision
+    use data2, only: t2
+    implicit none
+    integer, intent(in) :: n,l
+    real(dp) :: duration,latest_start
+    integer :: i
+    if (l <= 1) then
+      time_block_upper = n
+      return
+    end if
+    duration = time_block_duration(n,l)
+    latest_start = t2(n) - duration
+    time_block_upper = 1
+    do i=1,n
+      if (t2(i) <= latest_start) time_block_upper = i
+    end do
+  end function time_block_upper
+
+  subroutine time_block_indices(n,l,starts,indices)
+    use precision
+    use data2, only: t2
+    implicit none
+    integer, intent(in) :: n,l
+    integer(c_int32_t), intent(in) :: starts(:)
+    integer, intent(out) :: indices(:)
+    real(dp) :: duration,block_end
+    integer :: ib,a,ii,k
+
+    if (l <= 1) then
+      do k=1,n
+        indices(k) = int(starts(k))
+      end do
+      return
+    end if
+
+    duration = time_block_duration(n,l)
+    k = 1
+    do ib=1,size(starts)
+      a = max(1,min(n,int(starts(ib))))
+      block_end = t2(a) + duration
+      ii = a
+      do while (ii <= n .and. k <= n)
+        if (ii > a .and. t2(ii) > block_end) exit
+        indices(k) = ii
+        k = k + 1
+        ii = ii + 1
+      end do
+      if (k > n) exit
+    end do
+
+    do while (k <= n)
+      indices(k) = n
+      k = k + 1
+    end do
+  end subroutine time_block_indices
+
+  subroutine stationary_indices(n,l,starts,flags,indices)
+    implicit none
+    integer, intent(in) :: n,l
+    integer(c_int32_t), intent(in) :: starts(:), flags(:)
+    integer, intent(out) :: indices(:)
+    integer :: i,current
+    current = int(starts(1))
+    indices(1) = current
+    do i=2,n
+      if (int(flags(i)) == 1) then
+        current = int(starts(i))
+      else
+        current = current + 1
+        if (current > n) current = 1
+      end if
+      indices(i) = current
+    end do
+  end subroutine stationary_indices
+
   subroutine set_pearson_t4_null_calibration(enabled)
     implicit none
     logical, intent(in) :: enabled
@@ -198,18 +485,24 @@ contains
     pearson_t4_B3 = B3_in
   end subroutine set_pearson_t4_calibration_parameters
 
-  subroutine allocate_resample_data
+  subroutine allocate_resample_data(status)
     use resample_data
     use inv_tlambda
     use parameters, only: b1,b2,n_lambda
     implicit none
     integer :: error
+    integer, optional, intent(out) :: status
     integer :: i_lambda
     call deallocate_resample_data
     allocate(r_resample1(b1), r_resample2(b2), se_r_resample2(b1), &
       lambda(n_lambda), t_inv_lambda(n_lambda), &
       stat=error)
-    if (error /= 0) stop 'Allocation failed'
+    if (present(status)) then
+      status = error
+      if (error /= 0) return
+    else if (error /= 0) then
+      stop 'Allocation failed'
+    end if
     r_resample1=-999.0_dp
     r_resample2=-999.0_dp
     se_r_resample2=-999.0_dp
@@ -248,7 +541,7 @@ contains
   !
   !=============================================================================
   !
-  subroutine allocate1
+  subroutine allocate1(status)
     use setting, only: n2
     use data2, only: t2,x2,y2,x3,y3,x3_resample1,y3_resample1,      &
       x3_resample2,y3_resample2
@@ -257,10 +550,13 @@ contains
     !       Allocates t2, x2, y2, x3, y3, x3_resample1,y3_resample1,
     !       x3_resample2, y3_resample2
     integer :: error=0
+    integer, optional, intent(out) :: status
     allocate(t2(n2),x2(n2),y2(n2),x3(n2),y3(n2),                    &
       x3_resample1(b1,n2),y3_resample1(b1,n2),               &
       x3_resample2(n2),y3_resample2(n2), stat=error)
-    if (error /= 0) then
+    if (present(status)) then
+      status = error
+    else if (error /= 0) then
       print *,'Subroutine allocate1: space requested not possible - PearsonT terminates.'
       stop
     end if
@@ -294,8 +590,48 @@ contains
     integer :: n_block_start
     integer :: n_start
     integer :: upper
+    integer :: lengths(n)
     real :: t_inner, t_finished
     n_block_start=n-l+1
+    if (polrom_bootstrap) then
+      call ensure_randompack_starts(n)
+      call ensure_randompack_flags(n)
+      call rp_rng%int(rp_starts(1:n), 1, n)
+      call rp_rng%int(rp_flags(1:n), 1, l)
+      call stationary_indices(n,l,rp_starts(1:n),rp_flags(1:n),indxx)
+      x_resample(:)=x(indxx(:))
+      y_resample(:)=y(indxx(:))
+      return
+    end if
+    if (time_block_bootstrap) then
+      n_start = n
+      upper = time_block_upper(n,l)
+      call ensure_randompack_starts(n_start)
+      call rp_rng%int(rp_starts(1:n_start),1,upper)
+      call time_block_indices(n,l,rp_starts(1:n_start),indxx)
+      x_resample(:)=x(indxx(:))
+      y_resample(:)=y(indxx(:))
+      return
+    end if
+    if (random_length_bootstrap .and. l > 1) then
+      n_start = balanced_block_count(n,l)
+      call ensure_randompack_starts(n_start)
+      call random_block_lengths(n,l,random_block_beta,n_start,lengths(1:n_start))
+      call random_starts_for_lengths(n,n_start,lengths(1:n_start),rp_starts(1:n_start))
+      call length_indices(n,n_start,lengths(1:n_start),rp_starts(1:n_start),indxx)
+      x_resample(:)=x(indxx(:))
+      y_resample(:)=y(indxx(:))
+      return
+    end if
+    if (balanced_block_bootstrap .and. l > 1) then
+      n_start = balanced_block_count(n,l)
+      call ensure_randompack_starts(n_start)
+      call random_balanced_starts(n,n_start,rp_starts(1:n_start))
+      call balanced_indices(n,n_start,rp_starts(1:n_start),indxx)
+      x_resample(:)=x(indxx(:))
+      y_resample(:)=y(indxx(:))
+      return
+    end if
     if (l == 1) then
       n_start = n
       upper = n
@@ -305,7 +641,8 @@ contains
     end if
     if (profile_detail_enabled) call cpu_time(t_inner)
     call ensure_randompack_starts(n_start)
-    call rp_rng%int(rp_starts(1:n_start), 1, upper)
+    call draw_block_starts(n_start, upper)
+    if (api_call .and. api_status /= 0) return
     if (l == 1) then         ! block length less or equal to average spacing,
       ! ordinary bootstrap is used
       do i=1,n
@@ -350,8 +687,63 @@ contains
     real(dp), dimension(:), intent(out) :: x_resample,y_resample
     integer, dimension(n) :: indxx,indxy
     integer :: i,j,k,n_block_start,n_start,upper
+    integer :: lengths(n),lengths_y(n)
 
     n_block_start=n-l+1
+    if (polrom_bootstrap) then
+      call ensure_randompack_starts(n)
+      call ensure_randompack_starts_y(n)
+      call ensure_randompack_flags(n)
+      call ensure_randompack_flags_y(n)
+      call rp_rng%int(rp_starts(1:n), 1, n)
+      call rp_rng%int(rp_starts_y(1:n), 1, n)
+      call rp_rng%int(rp_flags(1:n), 1, l)
+      call rp_rng%int(rp_flags_y(1:n), 1, l)
+      call stationary_indices(n,l,rp_starts(1:n),rp_flags(1:n),indxx)
+      call stationary_indices(n,l,rp_starts_y(1:n),rp_flags_y(1:n),indxy)
+      x_resample(:)=x(indxx(:))
+      y_resample(:)=y(indxy(:))
+      return
+    end if
+    if (time_block_bootstrap) then
+      n_start = n
+      upper = time_block_upper(n,l)
+      call ensure_randompack_starts(n_start)
+      call ensure_randompack_starts_y(n_start)
+      call rp_rng%int(rp_starts(1:n_start),1,upper)
+      call rp_rng%int(rp_starts_y(1:n_start),1,upper)
+      call time_block_indices(n,l,rp_starts(1:n_start),indxx)
+      call time_block_indices(n,l,rp_starts_y(1:n_start),indxy)
+      x_resample(:)=x(indxx(:))
+      y_resample(:)=y(indxy(:))
+      return
+    end if
+    if (random_length_bootstrap .and. l > 1) then
+      n_start = balanced_block_count(n,l)
+      call ensure_randompack_starts(n_start)
+      call ensure_randompack_starts_y(n_start)
+      call random_block_lengths(n,l,random_block_beta,n_start,lengths(1:n_start))
+      call random_block_lengths(n,l,random_block_beta,n_start,lengths_y(1:n_start))
+      call random_starts_for_lengths(n,n_start,lengths(1:n_start),rp_starts(1:n_start))
+      call random_starts_for_lengths(n,n_start,lengths_y(1:n_start),rp_starts_y(1:n_start))
+      call length_indices(n,n_start,lengths(1:n_start),rp_starts(1:n_start),indxx)
+      call length_indices(n,n_start,lengths_y(1:n_start),rp_starts_y(1:n_start),indxy)
+      x_resample(:)=x(indxx(:))
+      y_resample(:)=y(indxy(:))
+      return
+    end if
+    if (balanced_block_bootstrap .and. l > 1) then
+      n_start = balanced_block_count(n,l)
+      call ensure_randompack_starts(n_start)
+      call ensure_randompack_starts_y(n_start)
+      call random_balanced_starts(n,n_start,rp_starts(1:n_start))
+      call random_balanced_starts(n,n_start,rp_starts_y(1:n_start))
+      call balanced_indices(n,n_start,rp_starts(1:n_start),indxx)
+      call balanced_indices(n,n_start,rp_starts_y(1:n_start),indxy)
+      x_resample(:)=x(indxx(:))
+      y_resample(:)=y(indxy(:))
+      return
+    end if
     if (l == 1) then
       n_start = n
       upper = n
@@ -412,10 +804,31 @@ contains
     real(dp), intent(out) :: se_r_resample2(b1)
     real(dp), allocatable :: r2(:)
     real(dp) :: ave_se_2,var_se_2
-    integer :: j,k,n_start,upper
+    integer :: j,k,n_start,upper, alloc_status
+    integer :: lengths(n2)
 
-    allocate(r2(b2))
-    if (l_mbb == 1) then
+    if (api_call) then
+      allocate(r2(b2), stat=alloc_status)
+      if (alloc_status /= 0) then
+        api_status = 1
+        return
+      end if
+    else
+      allocate(r2(b2))
+    end if
+    if (polrom_bootstrap) then
+      n_start = n2
+      upper = n2
+    else if (time_block_bootstrap) then
+      n_start = n2
+      upper = time_block_upper(n2,l_mbb)
+    else if (random_length_bootstrap .and. l_mbb > 1) then
+      n_start = balanced_block_count(n2,l_mbb)
+      upper = 0
+    else if (balanced_block_bootstrap .and. l_mbb > 1) then
+      n_start = balanced_block_count(n2,l_mbb)
+      upper = 0
+    else if (l_mbb == 1) then
       n_start = n2
       upper = n2
     else
@@ -423,13 +836,36 @@ contains
       upper = n2 - l_mbb + 1
     end if
     call ensure_randompack_starts(n_start)
+    if (polrom_bootstrap) call ensure_randompack_flags(n_start)
 
     do j=1,b1
       do k=1,b2
-        call rp_rng%int(rp_starts(1:n_start),1,upper)
-        call bootstrap_corr_centered(n2,l_mbb,n_start,rp_starts(1:n_start), &
-          x3_resample1(j,1:n2),y3_resample1(j,1:n2),r2(k))
+        if (polrom_bootstrap) then
+          call rp_rng%int(rp_starts(1:n_start),1,upper)
+          call rp_rng%int(rp_flags(1:n_start),1,l_mbb)
+          call bootstrap_corr_stationary(n2,l_mbb,rp_starts(1:n_start), &
+            rp_flags(1:n_start),x3_resample1(j,1:n2),y3_resample1(j,1:n2),r2(k))
+        else if (time_block_bootstrap) then
+          call rp_rng%int(rp_starts(1:n_start),1,upper)
+          call bootstrap_corr_time_centered(n2,l_mbb,rp_starts(1:n_start), &
+            x3_resample1(j,1:n2),y3_resample1(j,1:n2),r2(k))
+        else if (random_length_bootstrap .and. l_mbb > 1) then
+          call random_block_lengths(n2,l_mbb,random_block_beta,n_start,lengths(1:n_start))
+          call random_starts_for_lengths(n2,n_start,lengths(1:n_start),rp_starts(1:n_start))
+          call bootstrap_corr_lengths_centered(n2,n_start,lengths(1:n_start), &
+            rp_starts(1:n_start),x3_resample1(j,1:n2),y3_resample1(j,1:n2),r2(k))
+        else if (balanced_block_bootstrap .and. l_mbb > 1) then
+          call random_balanced_starts(n2,n_start,rp_starts(1:n_start))
+          call bootstrap_corr_balanced_centered(n2,n_start,rp_starts(1:n_start), &
+            x3_resample1(j,1:n2),y3_resample1(j,1:n2),r2(k))
+        else
+          call draw_block_starts(n_start, upper)
+          if (api_call .and. api_status /= 0) return
+          call bootstrap_corr_centered(n2,l_mbb,n_start,rp_starts(1:n_start), &
+            x3_resample1(j,1:n2),y3_resample1(j,1:n2),r2(k))
+        end if
       end do
+      if (api_call .and. api_status /= 0) return
       if (flag_fisher == 'y') then
         do k=1,b2
           r2(k)=invtanh(r2(k))
@@ -441,6 +877,43 @@ contains
     deallocate(r2)
   end subroutine boot_fast
 
+  subroutine bootstrap_corr_stationary(n,l,starts,flags,x,y,r)
+    use, intrinsic :: iso_c_binding, only: c_int32_t
+    use precision
+    implicit none
+    integer, intent(in) :: n,l
+    integer(c_int32_t), intent(in) :: starts(:),flags(:)
+    real(dp), intent(in) :: x(:),y(:)
+    real(dp), intent(out) :: r
+    real(dp), parameter :: tiny=1.0e-08_dp
+    real(dp) :: ax,ay,sxx,syy,sxy,dx,dy
+    integer :: i,current,indices(n)
+
+    call stationary_indices(n,l,starts,flags,indices)
+    ax=0.0_dp
+    ay=0.0_dp
+    do i=1,n
+      current=indices(i)
+      ax=ax+x(current)
+      ay=ay+y(current)
+    end do
+    ax=ax/n
+    ay=ay/n
+
+    sxx=0.0_dp
+    syy=0.0_dp
+    sxy=0.0_dp
+    do i=1,n
+      current=indices(i)
+      dx=x(current)-ax
+      dy=y(current)-ay
+      sxx=sxx+dx*dx
+      syy=syy+dy*dy
+      sxy=sxy+dx*dy
+    end do
+    r=sxy/(sqrt(sxx*syy)+tiny)
+  end subroutine bootstrap_corr_stationary
+
   subroutine bootstrap_corr_centered(n,l,n_start,starts,x,y,r)
     use, intrinsic :: iso_c_binding, only: c_int32_t
     use precision
@@ -450,8 +923,9 @@ contains
     real(dp), intent(in) :: x(:),y(:)
     real(dp), intent(out) :: r
     real(dp), parameter :: tiny=1.0e-08_dp
-    real(dp) :: ax,ay,sxx,syy,sxy,dx,dy
+    real(dp) :: ax,ay,sxx,syy,sxy,dx,dy,denom
     integer :: ib,a,m,left,ii
+    logical :: varying_x, varying_y
 
     ax=0.0_dp
     ay=0.0_dp
@@ -486,8 +960,147 @@ contains
       left=left-m
       if (left <= 0) exit
     end do
-    r=sxy/(sqrt(sxx*syy)+tiny)
+    denom=sqrt(sxx*syy)+tiny
+    r=sxy/denom
+    if (api_call) then
+      ! A repeated nonzero value can have a tiny residual from rounding its mean.
+      if (sxx <= n*(n*epsilon(ax)*ax)**2 .or. syy <= n*(n*epsilon(ay)*ay)**2) then
+        varying_x = .false.
+        varying_y = .false.
+        left = n
+        do ib=1,n_start
+          a = int(starts(ib))
+          m = min(l,left)
+          varying_x = varying_x .or. any(x(a:a+m-1) /= x(starts(1)))
+          varying_y = varying_y .or. any(y(a:a+m-1) /= y(starts(1)))
+          if (varying_x .and. varying_y) exit
+          left = left-m
+        end do
+        if (.not. (varying_x .and. varying_y)) api_degenerate = api_degenerate + 1
+      end if
+      if (.not. ieee_is_finite(denom) .or. .not. ieee_is_finite(r) .or. abs(r) > 1.0_dp) api_status = 3
+    end if
   end subroutine bootstrap_corr_centered
+
+  subroutine bootstrap_corr_balanced_centered(n,n_start,starts,x,y,r)
+    use, intrinsic :: iso_c_binding, only: c_int32_t
+    use precision
+    implicit none
+    integer, intent(in) :: n,n_start
+    integer(c_int32_t), intent(in) :: starts(:)
+    real(dp), intent(in) :: x(:),y(:)
+    real(dp), intent(out) :: r
+    real(dp), parameter :: tiny=1.0e-08_dp
+    real(dp) :: ax,ay,sxx,syy,sxy,dx,dy
+    integer :: ib,a,li,ii
+
+    ax=0.0_dp
+    ay=0.0_dp
+    do ib=1,n_start
+      a=int(starts(ib))
+      li=balanced_block_length(n,n_start,ib)
+      do ii=a,a+li-1
+        ax=ax+x(ii)
+        ay=ay+y(ii)
+      end do
+    end do
+    ax=ax/n
+    ay=ay/n
+
+    sxx=0.0_dp
+    syy=0.0_dp
+    sxy=0.0_dp
+    do ib=1,n_start
+      a=int(starts(ib))
+      li=balanced_block_length(n,n_start,ib)
+      do ii=a,a+li-1
+        dx=x(ii)-ax
+        dy=y(ii)-ay
+        sxx=sxx+dx*dx
+        syy=syy+dy*dy
+        sxy=sxy+dx*dy
+      end do
+    end do
+    r=sxy/(sqrt(sxx*syy)+tiny)
+  end subroutine bootstrap_corr_balanced_centered
+
+  subroutine bootstrap_corr_lengths_centered(n,n_start,lengths,starts,x,y,r)
+    use, intrinsic :: iso_c_binding, only: c_int32_t
+    use precision
+    implicit none
+    integer, intent(in) :: n,n_start
+    integer, intent(in) :: lengths(:)
+    integer(c_int32_t), intent(in) :: starts(:)
+    real(dp), intent(in) :: x(:),y(:)
+    real(dp), intent(out) :: r
+    real(dp), parameter :: tiny=1.0e-08_dp
+    real(dp) :: ax,ay,sxx,syy,sxy,dx,dy
+    integer :: ib,a,li,ii
+
+    ax=0.0_dp
+    ay=0.0_dp
+    do ib=1,n_start
+      a=int(starts(ib))
+      li=lengths(ib)
+      do ii=a,a+li-1
+        ax=ax+x(ii)
+        ay=ay+y(ii)
+      end do
+    end do
+    ax=ax/n
+    ay=ay/n
+
+    sxx=0.0_dp
+    syy=0.0_dp
+    sxy=0.0_dp
+    do ib=1,n_start
+      a=int(starts(ib))
+      li=lengths(ib)
+      do ii=a,a+li-1
+        dx=x(ii)-ax
+        dy=y(ii)-ay
+        sxx=sxx+dx*dx
+        syy=syy+dy*dy
+        sxy=sxy+dx*dy
+      end do
+    end do
+    r=sxy/(sqrt(sxx*syy)+tiny)
+  end subroutine bootstrap_corr_lengths_centered
+
+  subroutine bootstrap_corr_time_centered(n,l,starts,x,y,r)
+    use, intrinsic :: iso_c_binding, only: c_int32_t
+    use precision
+    implicit none
+    integer, intent(in) :: n,l
+    integer(c_int32_t), intent(in) :: starts(:)
+    real(dp), intent(in) :: x(:),y(:)
+    real(dp), intent(out) :: r
+    real(dp), parameter :: tiny=1.0e-08_dp
+    real(dp) :: ax,ay,sxx,syy,sxy,dx,dy
+    integer :: i,indices(n)
+
+    call time_block_indices(n,l,starts,indices)
+    ax=0.0_dp
+    ay=0.0_dp
+    do i=1,n
+      ax=ax+x(indices(i))
+      ay=ay+y(indices(i))
+    end do
+    ax=ax/n
+    ay=ay/n
+
+    sxx=0.0_dp
+    syy=0.0_dp
+    sxy=0.0_dp
+    do i=1,n
+      dx=x(indices(i))-ax
+      dy=y(indices(i))-ay
+      sxx=sxx+dx*dx
+      syy=syy+dy*dy
+      sxy=sxy+dx*dy
+    end do
+    r=sxy/(sqrt(sxx*syy)+tiny)
+  end subroutine bootstrap_corr_time_centered
 
   !============================================================================
 
@@ -502,9 +1115,22 @@ contains
     real(dp), allocatable :: x1(:),y1(:),r2(:),se1(:)
     real(dp) :: ave,var
     integer :: j,k,n_start,upper
+    integer :: lengths(n)
 
     allocate(x1(n),y1(n),r2(B2),se1(B1))
-    if (l_mbb == 1) then
+    if (polrom_bootstrap) then
+      n_start = n
+      upper = n
+    else if (time_block_bootstrap) then
+      n_start = n
+      upper = time_block_upper(n,l_mbb)
+    else if (random_length_bootstrap .and. l_mbb > 1) then
+      n_start = balanced_block_count(n,l_mbb)
+      upper = 0
+    else if (balanced_block_bootstrap .and. l_mbb > 1) then
+      n_start = balanced_block_count(n,l_mbb)
+      upper = 0
+    else if (l_mbb == 1) then
       n_start = n
       upper = n
     else
@@ -512,13 +1138,34 @@ contains
       upper = n - l_mbb + 1
     end if
     call ensure_randompack_starts(n_start)
+    if (polrom_bootstrap) call ensure_randompack_flags(n_start)
 
     do j=1,B1
       call bootstrap(n,x,y,l_mbb,x1,y1)
       do k=1,B2
-        call rp_rng%int(rp_starts(1:n_start),1,upper)
-        call bootstrap_corr_centered(n,l_mbb,n_start,rp_starts(1:n_start), &
-          x1,y1,r2(k))
+        if (polrom_bootstrap) then
+          call rp_rng%int(rp_starts(1:n_start),1,upper)
+          call rp_rng%int(rp_flags(1:n_start),1,l_mbb)
+          call bootstrap_corr_stationary(n,l_mbb,rp_starts(1:n_start), &
+            rp_flags(1:n_start),x1,y1,r2(k))
+        else if (time_block_bootstrap) then
+          call rp_rng%int(rp_starts(1:n_start),1,upper)
+          call bootstrap_corr_time_centered(n,l_mbb,rp_starts(1:n_start), &
+            x1,y1,r2(k))
+        else if (random_length_bootstrap .and. l_mbb > 1) then
+          call random_block_lengths(n,l_mbb,random_block_beta,n_start,lengths(1:n_start))
+          call random_starts_for_lengths(n,n_start,lengths(1:n_start),rp_starts(1:n_start))
+          call bootstrap_corr_lengths_centered(n,n_start,lengths(1:n_start), &
+            rp_starts(1:n_start),x1,y1,r2(k))
+        else if (balanced_block_bootstrap .and. l_mbb > 1) then
+          call random_balanced_starts(n,n_start,rp_starts(1:n_start))
+          call bootstrap_corr_balanced_centered(n,n_start,rp_starts(1:n_start), &
+            x1,y1,r2(k))
+        else
+          call rp_rng%int(rp_starts(1:n_start),1,upper)
+          call bootstrap_corr_centered(n,l_mbb,n_start,rp_starts(1:n_start), &
+            x1,y1,r2(k))
+        end if
       end do
       if (flag_fisher == 'y') then
         do k=1,B2
@@ -576,6 +1223,19 @@ contains
     end do
     deallocate(x_null,y_null,t_null,count_low,count_upp)
   end subroutine pearson_t4_calibration
+
+  subroutine pearson_t4_calibration_split_l(n,B1,B2,B3,n_lambda,l_null, &
+      flag_fisher,x,y,t_inv_lambda,pnull_low,pnull_upp)
+    use precision
+    implicit none
+    integer, intent(in) :: n,B1,B2,B3,n_lambda,l_null
+    character(len=*), intent(in) :: flag_fisher
+    real(dp), intent(in) :: x(:),y(:),t_inv_lambda(:)
+    real(dp), intent(out) :: pnull_low(:),pnull_upp(:)
+
+    call pearson_t4_calibration(n,B1,B2,B3,n_lambda,l_null,flag_fisher,x,y, &
+      t_inv_lambda,pnull_low,pnull_upp)
+  end subroutine pearson_t4_calibration_split_l
 
   !============================================================================
 
@@ -702,7 +1362,7 @@ contains
   !
   !=============================================================================
   !
-  subroutine chsett4
+  subroutine chsett4(override)
     use precision
     use result1, only: rhox3,rhoy3   
     use setting, only: n2, l_mbb
@@ -718,12 +1378,29 @@ contains
     real(dp), parameter :: half=0.5_dp
     real(dp), parameter :: one=1.0_dp
     real(dp), parameter :: two=2.0_dp
-    character(len=32) :: l_mbb_env
+    character(len=32) :: l_mbb_env, alpha_env
+    real(dp) :: l_mbb_alpha
     integer :: l_mbb_override, read_status
+    integer, optional, intent(in) :: override
     !
     axy = sqrt(rhox3*rhoy3) !Eq 7.31 in (Mudelsee, 2010)
+    if (present(override)) then
+      if (override > 0) then
+        l_mbb = override
+      else
+        l_mbb = max(1,nint(min(real(n2-1,dp), &
+          ((6.0_dp**half*axy)/(one-axy**2))**twothird*n2**onethird)))
+      end if
+      return
+    end if
     !  
-    l_mbb = nint(((6.0_dp**half*axy)/(one-axy**2))**twothird*n2**onethird)        
+    l_mbb_alpha = 1.0_dp
+    call get_environment_variable("P3_L_MBB_ALPHA", alpha_env)
+    if (len_trim(alpha_env) > 0) then
+      read(alpha_env, *, iostat=read_status) l_mbb_alpha
+      if (read_status /= 0 .or. l_mbb_alpha <= 0.0_dp) l_mbb_alpha = 1.0_dp
+    end if
+    l_mbb = nint(l_mbb_alpha*((6.0_dp**half*axy)/(one-axy**2))**twothird*n2**onethird)
     !                          ! Eq 7.32 in (Mudelsee,2010)
     if (l_mbb < 1) then
       print*
@@ -736,9 +1413,10 @@ contains
       print'(a)','Note: block length equal to average spacing - '
       print'(a)','      PearsonT uses ordinary bootstrap.'
     end if
-    if (l_mbb> n2) then
+    ! changed > to >= (KJ 2026)
+    if (l_mbb >= n2) then
       l_mbb = n2-1
-      print'(a)','Note: block length longer than number of data points n '
+      print'(a)','Note: block length reaches or exceeds number of data points n '
       print'(a)','      PearsonT uses block lenght =  n -1.'
     end if
     call get_environment_variable("P3_L_MBB", l_mbb_env)
@@ -753,7 +1431,7 @@ contains
   !
   !=============================================================================
   !
-  subroutine confidence
+  subroutine confidence(coverage_out, selected_lambda)
     use precision
     use meanvar_module
     use data2, only: x3,x3_resample1,x3_resample2,                  &
@@ -779,11 +1457,14 @@ contains
     real(dp) :: ave_se_2=-999.0_dp
     real(dp) :: var_se_2=-999.0_dp
     !  
-    real(dp),dimension(n_lambda)::plambda, plambda_low, plambda_upp, ptarget
-    real(dp),dimension(n_lambda)::pnull_low, pnull_upp
+    real(dp),allocatable::plambda(:), plambda_low(:), plambda_upp(:), ptarget(:)
+    real(dp),allocatable::pnull_low(:), pnull_upp(:)
+    real(dp), optional, intent(out) :: coverage_out(n_lambda), selected_lambda
+    integer :: alloc_status
     real(dp):: alphatest=-999.0_dp        ! test alpha (1 - 2 * alpha)
     integer :: l_loc=0 ! gives the location of lambda value, within the lambda,
     integer :: l_low_loc=0, l_upp_loc=0
+    integer :: l_obs=0, l_null=0
     !                  ! which gives the coverage closest to 1-2*alpha  array
     character(len=1) :: flag_fisher='y'    ! 'y' = Fisher's transform
     !                ! 'n' = without Fisher's transform
@@ -795,12 +1476,42 @@ contains
     character(len=32) :: no_calibration_env, split_tail_env, zero_calibration_env
     character(len=32) :: target_rho_env
     character(len=32) :: t4_scale_l_coef_env
-    integer :: target_status, scale_status
+    character(len=32) :: polrom_env, polrom4_env, time_blocks_env, balanced_blocks_env
+    character(len=32) :: random_block_beta_env
+    character(len=32) :: l_obs_env, l_null_env
+    integer :: target_status, scale_status, beta_status, l_status
     real(dp) :: target_rho, t4_scale_l_coef, ci_se
     real :: t_confidence, t_phase, t_inner, t_finished
     real :: t_second_bootstrap_resample, t_second_bootstrap_pearsn
     real :: t_second_bootstrap_transform, t_second_bootstrap_meanvar
     real :: t_second_bootstrap_lambda
+    allocate(plambda(n_lambda), plambda_low(n_lambda), plambda_upp(n_lambda), ptarget(n_lambda), &
+      pnull_low(n_lambda), pnull_upp(n_lambda), stat=alloc_status)
+    if (alloc_status /= 0) then
+      if (.not. api_call) stop 'Allocation failed'
+      api_status = 1
+      return
+    end if
+    flag_fisher = 'y'
+    if (api_call) then
+      profile_env = ''
+      profile_detail_env = ''
+      debug_env = ''
+      slow_env = ''
+      fisher_env = ''
+      no_calibration_env = ''
+      split_tail_env = ''
+      zero_calibration_env = ''
+      target_rho_env = ''
+      t4_scale_l_coef_env = ''
+      polrom_env = ''
+      polrom4_env = ''
+      time_blocks_env = ''
+      balanced_blocks_env = ''
+      random_block_beta_env = ''
+      l_obs_env = ''
+      l_null_env = ''
+    else
     call get_environment_variable("P3_PROFILE", profile_env)
     call get_environment_variable("P3_PROFILE_DETAIL", profile_detail_env)
     call get_environment_variable("P3_DEBUG_CALIBRATION", debug_env)
@@ -811,6 +1522,14 @@ contains
     call get_environment_variable("P3_ZERO_CALIBRATION", zero_calibration_env)
     call get_environment_variable("P3_TARGET_RHO", target_rho_env)
     call get_environment_variable("P4_SCALE_L_COEF", t4_scale_l_coef_env)
+    call get_environment_variable("P3_POLROM", polrom_env)
+    call get_environment_variable("P4_POLROM", polrom4_env)
+    call get_environment_variable("P3_TIME_BLOCKS", time_blocks_env)
+    call get_environment_variable("P3_BALANCED_BLOCKS", balanced_blocks_env)
+    call get_environment_variable("P3_RANDOM_BLOCK_BETA", random_block_beta_env)
+    call get_environment_variable("P4_L_OBS", l_obs_env)
+    call get_environment_variable("P4_L_NULL", l_null_env)
+    end if
     profile = len_trim(profile_env) > 0
     profile_detail = len_trim(profile_detail_env) > 0
     debug_calibration = len_trim(debug_env) > 0
@@ -851,6 +1570,29 @@ contains
     pnull_low = -999.0_dp
     pnull_upp = -999.0_dp
     profile_detail_enabled = profile_detail
+    polrom_bootstrap = len_trim(polrom_env) > 0 .or. len_trim(polrom4_env) > 0
+    time_block_bootstrap = len_trim(time_blocks_env) > 0
+    balanced_block_bootstrap = len_trim(balanced_blocks_env) > 0
+    random_length_bootstrap = len_trim(random_block_beta_env) > 0
+    random_block_beta = 0.8_dp
+    if (random_length_bootstrap) then
+      read(random_block_beta_env, *, iostat=beta_status) random_block_beta
+      if (beta_status /= 0 .or. random_block_beta <= 0.0_dp .or. random_block_beta > 1.0_dp) then
+        random_block_beta = 0.8_dp
+      end if
+    end if
+    l_obs = l_mbb
+    l_null = l_mbb
+    if (len_trim(l_obs_env) > 0) then
+      read(l_obs_env, *, iostat=l_status) l_obs
+      if (l_status /= 0) l_obs = l_mbb
+      l_obs = max(1,min(n2-1,l_obs))
+    end if
+    if (len_trim(l_null_env) > 0) then
+      read(l_null_env, *, iostat=l_status) l_null
+      if (l_status /= 0) l_null = l_mbb
+      l_null = max(1,min(n2-1,l_null))
+    end if
     profile_bootstrap_index = 0.0
     profile_bootstrap_copy = 0.0
     profile_pearsn_means = 0.0
@@ -871,7 +1613,16 @@ contains
       if (profile) call cpu_time(t_phase)
       do j=1,b1
         call bootstrap(n2,x3,y3,l_mbb,x3_resample1(j,1:n2),y3_resample1(j,1:n2))
+        if (api_call .and. api_status /= 0) return
         call pearsn(x3_resample1(j,1:n2),y3_resample1(j,1:n2),n2,r_resample1(j))
+        if (api_call) then
+          if (api_status /= 0 .or. .not. ieee_is_finite(r_resample1(j)) .or. abs(r_resample1(j)) > 1.0_dp) then
+            api_status = 3
+            return
+          end if
+          if (all(x3_resample1(j,:) == x3_resample1(j,1)) .or. &
+              all(y3_resample1(j,:) == y3_resample1(j,1))) api_degenerate = api_degenerate + 1
+        end if
       end do
       if (profile) call print_confidence_profile("first_bootstrap", t_phase)
       !
@@ -893,15 +1644,19 @@ contains
       !  
       call meanvar(r_resample1(1:b1),ave_se_1,var_se_1)
       se_r_resample1 = sqrt(var_se_1)  
+      if (api_call .and. (.not. ieee_is_finite(se_r_resample1) .or. se_r_resample1 <= 0.0_dp)) then
+        api_status = 3
+        return
+      end if
       if (profile) call print_confidence_profile("first_transform_se", t_phase)
     end if
     !
     if (pearson_t4_null_calibration) then
       if (profile) call cpu_time(t_phase)
       call pearson_t4_nested_scale(n2,pearson_t4_B1,pearson_t4_B2, &
-        l_mbb,flag_fisher,x3,y3,se_r_resample1)
+        l_obs,flag_fisher,x3,y3,se_r_resample1)
       call pearson_t4_calibration(n2,pearson_t4_B1,pearson_t4_B2, &
-        pearson_t4_B3,n_lambda,l_mbb,flag_fisher,x3,y3,t_inv_lambda, &
+        pearson_t4_B3,n_lambda,l_null,flag_fisher,x3,y3,t_inv_lambda, &
         pnull_low,pnull_upp)
       if (profile) call print_confidence_profile("t4_null_calibration", t_phase)
     else
@@ -933,6 +1688,7 @@ contains
     else
       call boot_fast(n2,b1,b2,l_mbb,flag_fisher,x3_resample1, &
         y3_resample1,se_r_resample2)
+      if (api_call .and. api_status /= 0) return
     end if
     if (profile) call print_confidence_profile("second_bootstrap", t_phase)
     if (profile_detail) call print_profile_value("second_bootstrap.resample", &
@@ -1043,6 +1799,8 @@ contains
     !  4.2 Calculate calibrated Student's t CI
     !  ======================================
     !
+    if (present(coverage_out)) coverage_out = plambda
+    if (present(selected_lambda)) selected_lambda = lambda(l_loc)
     ci_se = se_r_resample1
     if (pearson_t4_null_calibration .and. t4_scale_l_coef /= 0.0_dp) then
       ci_se = ci_se * (1.0_dp + t4_scale_l_coef / l_mbb)
@@ -1505,11 +2263,12 @@ contains
     real(dp), intent(out) :: r
     real(dp), parameter :: tiny=1.0e-08_dp
     real(dp), dimension(n) :: xt,yt
-    real(dp) :: ax,ay,sxx,sxy,syy,dx,dy
+    real(dp) :: ax,ay,sxx,sxy,syy,dx,dy,denom
     real :: t_inner, t_finished
     integer :: i
     character(len=32) :: orig_pearsn_env
-    call get_environment_variable("P3_ORIG_PEARSN", orig_pearsn_env)
+    orig_pearsn_env = ''
+    if (.not. api_call) call get_environment_variable("P3_ORIG_PEARSN", orig_pearsn_env)
     if (len_trim(orig_pearsn_env) > 0) then
       ax=sum(x)/n
       ay=sum(y)/n
@@ -1550,7 +2309,9 @@ contains
       profile_pearsn_center = profile_pearsn_center + t_finished - t_inner
       call cpu_time(t_inner)
     end if
-    r=sxy/(sqrt(sxx*syy)+tiny)
+    denom=sqrt(sxx*syy)+tiny
+    r=sxy/denom
+    if (api_call .and. .not. ieee_is_finite(denom)) api_status = 3
     if (profile_detail_enabled) then
       call cpu_time(t_finished)
       profile_pearsn_finish = profile_pearsn_finish + t_finished - t_inner
@@ -1974,7 +2735,7 @@ contains
     real(dp),  intent(in) :: alpha
     integer,  intent(in) :: dof
     real(dp) :: u=-999.0_dp
-    integer  :: d=0
+    real(dp) :: d
     u=phi_inv(alpha)
     d=dof
     t_inv=u                                                            + &
