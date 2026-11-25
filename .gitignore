@@ -34,6 +34,8 @@ REDFIT-X-result*
 autocross/.r-lib/
 
 # Local/generated files
+/studies/
+/codex-plans/
 ~$*
 .jupyter/
 .virtual_documents/

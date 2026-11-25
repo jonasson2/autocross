@@ -94,7 +94,7 @@ module parameters
 ! 2.    Number of bootstrap simulations
 !       ===============================
 !
-        integer, parameter :: b1=5 !2000
+        integer, parameter :: b1=2000
         integer, parameter :: b2=1000
 !
 ! 3.    Confidence level (1 - 2 * alpha)
@@ -459,30 +459,19 @@ program pear
         call read1      		! reads data
 !
 ! 3.    Time interval extraction and calculation
-        !       ======================================
-        print *, '(a)'
+!       ======================================
         call init1a     			! n2=n1
-        print *, '(b)'
 	call calc_inv_student  	! calculates percentage point tv(alpha) of the Student's t distribution (after alpha and n have been defined)
-        print *, '(c)'
 	call calc_t_inv_lambda	! calculates percentage point tv(lambda) over a lambda grid (Calibrated CI)      
-        print *, '(d)'
         call allocate1  			! t2, x2, y2, x3, y3, x3_resample1, y3_resample1, x3_resample2, y3_resample2
-        print *, '(e)'
         call init1b     			! t2, x2, y2, x3, y3, x3_resample1, y3_resample1, x3_resample2, y3_resample2
-        print *, '(f)'
-
 outer4: do i1=1,imax
 !                call chsett3           ! changes setting: dtrtype
               call r_est               	! detrends (x2->x3, y2->y3)
 					! estimates r(x3, y3)
-        print *, '(g)'
               call tauest             	! estimates persistence times taux3, tauy3 and rhox3 and rhoy3)
-        print *, '(h)'
               call chsett4            	! changes setting: l_mbb , block length
-        print *, '(i)'
               call confidence        	! estimates [r_low; r_upp]
-        print *, '(j)'
               call plot(1)             	! t2, x2, y2
               call plot(2)             	! x2, y2
               call info1('p')          	! extracted time interval
@@ -746,8 +735,7 @@ subroutine chsett1
         do i=1,ntry
            print *
            print '(a)','data (t, x, y)              [path + filename]'
-           !read (5,'(a)') datafile
-           datafile = 'test_data.txt'
+           read (5,'(a)') datafile
            open (unit=1, file=datafile, status='old',                   &
                  form='formatted', action='read', iostat=open_error)
            if (open_error /= 0 ) then
@@ -925,7 +913,6 @@ subroutine confidence
 	   call bootstrap(n2,x3,y3,l_mbb,x3_resample1(j,1:n2),y3_resample1(j,1:n2))
 	   call pearsn(x3_resample1(j,1:n2),y3_resample1(j,1:n2),n2,r_resample1(j))
 	end do
-    print *, 'n2,b1=', n2, b1
 !
 !	1.2 Fisher's z-transformation
 !	=============================
@@ -973,7 +960,6 @@ subroutine confidence
 !	Goes b1=2000 times through the 2nd bootstrap loop
         
 !	
- print *, '(A)'
 boot:	do j=1,b1
 
 	   If (j ==100) print*, '2nd bootstrap loop working...' 
@@ -1029,13 +1015,13 @@ boot:	do j=1,b1
 	            r_low_resample1(j,l) = r_resample1(j)+t_inv_lambda(l)*se_r_resample2(j)
 	            r_upp_resample1(j,l) = r_resample1(j)-t_inv_lambda(l)*se_r_resample2(j)
 	         end do
-        end if
-        print *,'r_resample1',r_resample1
+	   end if
 !		
 !
 !	2.5 End of big Bootstrap loop
 !	=============================
 	end do boot
+	
 !	
 !
 ! 3. Determination of two-sides plambda
@@ -1106,8 +1092,7 @@ subroutine decis1(c)
            print '(a)','New time interval                        [n]'
            print '(a)','Original time interval                   [o]'
            print '(a)','Output and exit                          [x]'
-           !read (5,'(a1)') c
-           c = 'x'
+           read (5,'(a1)') c
            if (c == 'n' .or. c == 'o' .or. c == 'x') exit
         end do
         if (i > ntry) then
@@ -1530,7 +1515,6 @@ end subroutine minls
 !
 subroutine output
 	use own_interfaces
-        use result1
         use parameters, only: outputfile
         implicit none
 !       Writes output to file.
@@ -1542,7 +1526,7 @@ subroutine output
         call info3('w',outputfile)
         call info4('w',outputfile)
         print '(a)','Press Enter to exit'
-        !read (5,'(a)') dummy
+        read (5,'(a)') dummy
 end subroutine output
 !
 !===================================================================================================
@@ -1865,7 +1849,7 @@ subroutine plotgn
 !
 !       <=> following lines uncommented
 !
-	!call execute_command_line("wgnuplot.exe 2.tmp")
+	call execute_command_line("wgnuplot.exe 2.tmp")
 !***************************************************************************************************
 !       PC, Suse Linux 8.0                            Portland PGF90 3.2-4
 !       <=> following lines uncommented
@@ -2054,7 +2038,6 @@ end subroutine tauest
 	!brent - Brent's search - minimum ls value
 !	
 	call minls(n,t,x,amin,mult)
-        print *,'amin=', amin
 !
 ! 5.    Result					! checked if amin (the value for a) is equal or less than zero,
 !       ======					! or if it is equal or bigger than 1.0. That can cause problems in the estimation
